@@ -1,51 +1,84 @@
 class_name TacticalCamera
 extends Camera2D
 
-## Mobile Tactical Camera with touch panning, pinch-to-zoom, and boundary limits.
+## Mobile Tactical Camera with single-finger drag pan, two-finger pinch-to-zoom,
+## and full mouse/desktop fallback support. Clamped strictly to map boundaries.
 
-@export var pan_speed: float = 1.0
 @export var min_zoom: float = 0.5
 @export var max_zoom: float = 1.8
-@export var map_bounds: Rect2 = Rect2(-1000, -700, 2000, 1400)
+@export var zoom_speed: float = 0.08
+@export var pan_smoothing: float = 18.0
+@export var map_bounds: Rect2 = Rect2(-1280, -768, 2560, 1536)
 
-var _is_panning: bool = false
-var _pan_start_pos: Vector2 = Vector2.ZERO
-var _initial_camera_pos: Vector2 = Vector2.ZERO
+var target_position: Vector2 = Vector2.ZERO
+var target_zoom: float = 1.0
 
-# Touch gesture state
-var _touch_points: Dictionary = {}
-var _last_pinch_dist: float = 0.0
+# Desktop mouse drag state
+var _is_mouse_panning: bool = false
+var _mouse_pan_start: Vector2 = Vector2.ZERO
+
+func _ready() -> void:
+	target_position = position
+	target_zoom = zoom.x
+	_clamp_camera_target()
+
+func _process(delta: float) -> void:
+	# Smoothly interpolate position and zoom for fluid touch response
+	position = position.lerp(target_position, delta * pan_smoothing)
+	var cur_z = lerpf(zoom.x, target_zoom, delta * pan_smoothing)
+	zoom = Vector2(cur_z, cur_z)
+
+func pan_by_screen_delta(screen_delta: Vector2) -> void:
+	target_position -= screen_delta * (1.0 / zoom.x)
+	_clamp_camera_target()
+
+func zoom_at_screen_pos(factor: float, pivot_screen: Vector2 = Vector2.ZERO) -> void:
+	var prev_zoom = target_zoom
+	target_zoom = clampf(target_zoom * factor, min_zoom, max_zoom)
+	
+	if not pivot_screen.is_zero_approx():
+		var viewport_size = get_viewport_rect().size
+		var center_offset = (pivot_screen - viewport_size * 0.5) * (1.0 / prev_zoom - 1.0 / target_zoom)
+		target_position += center_offset
+	_clamp_camera_target()
+
+func set_map_bounds(bounds: Rect2) -> void:
+	map_bounds = bounds
+	_clamp_camera_target()
+
+func _clamp_camera_target() -> void:
+	var vp_size = get_viewport_rect().size * (1.0 / target_zoom)
+	var half_w = vp_size.x * 0.5
+	var half_h = vp_size.y * 0.5
+	
+	var min_x = map_bounds.position.x + half_w
+	var max_x = map_bounds.end.x - half_w
+	var min_y = map_bounds.position.y + half_h
+	var max_y = map_bounds.end.y - half_h
+	
+	if min_x > max_x:
+		target_position.x = map_bounds.get_center().x
+	else:
+		target_position.x = clampf(target_position.x, min_x, max_x)
+		
+	if min_y > max_y:
+		target_position.y = map_bounds.get_center().y
+	else:
+		target_position.y = clampf(target_position.y, min_y, max_y)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch:
-		if event.pressed:
-			_touch_points[event.index] = event.position
-		else:
-			_touch_points.erase(event.index)
-			if _touch_points.is_empty():
-				_last_pinch_dist = 0.0
+	# Desktop Mouse Wheel Zoom Support
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			zoom_at_screen_pos(1.12, event.position)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			zoom_at_screen_pos(0.88, event.position)
+		elif event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed:
+				_is_mouse_panning = true
+				_mouse_pan_start = event.position
+			else:
+				_is_mouse_panning = false
 				
-	elif event is InputEventScreenDrag:
-		_touch_points[event.index] = event.position
-		
-		# Two finger pinch zoom
-		if _touch_points.size() >= 2:
-			var pts = _touch_points.values()
-			var dist = pts[0].distance_to(pts[1])
-			if _last_pinch_dist > 0.0:
-				var diff = dist - _last_pinch_dist
-				var new_zoom = clampf(zoom.x + diff * 0.003, min_zoom, max_zoom)
-				zoom = Vector2(new_zoom, new_zoom)
-			_last_pinch_dist = dist
-		# Single finger pan when edge dragged or middle-dragged
-		elif event.index == 1 or Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
-			position -= event.relative * (1.0 / zoom.x)
-			_clamp_position()
-
-func _clamp_position() -> void:
-	position.x = clampf(position.x, map_bounds.position.x, map_bounds.end.x)
-	position.y = clampf(position.y, map_bounds.position.y, map_bounds.end.y)
-
-func focus_on(world_pos: Vector2) -> void:
-	var tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(self, "position", world_pos, 0.4)
+	elif event is InputEventMouseMotion and _is_mouse_panning:
+		pan_by_screen_delta(event.relative)

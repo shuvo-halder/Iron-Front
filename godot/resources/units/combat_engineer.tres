@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "unit_engineer"
+display_name = "Combat Engineer"
+unit_type = 0
+team = 0
+hp = 75.0
+speed = 90.0
+damage = 8.0
+range = 160.0
+attack_cooldown = 0.8
+cost = 50
+armor_front = 4.0
+armor_side = 4.0
+armor_rear = 4.0
+armor_penetration = 6.0
+unit_radius = 14.0
+rotation_speed = 4.5
+turret_rotation_speed = 4.5
+projectile_speed = 450.0
+splash_radius = 0.0

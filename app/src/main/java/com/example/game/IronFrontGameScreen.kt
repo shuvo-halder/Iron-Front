@@ -92,32 +92,42 @@ fun IronFrontGameScreen() {
                 .fillMaxSize()
                 .testTag("battlefield_canvas")
                 .pointerInput(Unit) {
-                    detectTapGestures { tapOffset ->
-                        val worldX = tapOffset.x + camX
-                        val worldY = tapOffset.y + camY
+                    detectTapGestures(
+                        onTap = { tapOffset ->
+                            val worldX = tapOffset.x + camX
+                            val worldY = tapOffset.y + camY
 
-                        // Check if tapped a unit
-                        val tappedUnit = engine.selectSingleUnitAt(worldX, worldY)
-                        if (tappedUnit != null) {
-                            if (tappedUnit.faction == Faction.ALLIED) {
-                                engine.clearSelection()
-                                tappedUnit.isSelected = true
-                                TacticalAudio.playOrderBeep()
+                            // Check if tapped a unit
+                            val tappedUnit = engine.selectSingleUnitAt(worldX, worldY)
+                            if (tappedUnit != null) {
+                                if (tappedUnit.faction == Faction.ALLIED) {
+                                    engine.clearSelection()
+                                    tappedUnit.isSelected = true
+                                    TacticalAudio.playOrderBeep()
+                                } else {
+                                    // Tapped enemy -> Issue attack order to currently selected
+                                    if (selectedUnits.isNotEmpty()) {
+                                        engine.issueOrderToSelected(worldX, worldY, OrderMode.ATTACK_MOVE, tappedUnit)
+                                    }
+                                }
                             } else {
-                                // Tapped enemy -> Issue attack order to currently selected
+                                // Tapped ground
                                 if (selectedUnits.isNotEmpty()) {
-                                    engine.issueOrderToSelected(worldX, worldY, OrderMode.ATTACK_MOVE, tappedUnit)
+                                    engine.issueOrderToSelected(worldX, worldY, currentOrderMode)
+                                } else {
+                                    engine.clearSelection()
                                 }
                             }
-                        } else {
-                            // Tapped ground
+                        },
+                        onLongPress = { longPressOffset ->
+                            val worldX = longPressOffset.x + camX
+                            val worldY = longPressOffset.y + camY
                             if (selectedUnits.isNotEmpty()) {
-                                engine.issueOrderToSelected(worldX, worldY, currentOrderMode)
-                            } else {
-                                engine.clearSelection()
+                                engine.issueOrderToSelected(worldX, worldY, OrderMode.ATTACK_MOVE)
+                                TacticalAudio.playOrderBeep()
                             }
                         }
-                    }
+                    )
                 }
                 .pointerInput(Unit) {
                     detectDragGestures(
@@ -678,6 +688,67 @@ private fun DrawScope.drawTacticalTerrain(mapW: Float, mapH: Float, camX: Float,
         topLeft = Offset(-camX, -camY),
         size = Size(mapW, mapH)
     )
+
+    // 1. Central Road (Speed Boost)
+    val roadY = mapH * 0.5f - 50f
+    drawRect(
+        color = Color(0xFF3E3B36),
+        topLeft = Offset(-camX, roadY - camY),
+        size = Size(mapW, 100f)
+    )
+    // Road center markings
+    var rx = 0f
+    while (rx < mapW) {
+        drawLine(
+            color = Color(0x66FFD54F),
+            start = Offset(rx - camX, mapH * 0.5f - camY),
+            end = Offset(rx + 40f - camX, mapH * 0.5f - camY),
+            strokeWidth = 3f
+        )
+        rx += 80f
+    }
+
+    // 2. Vertical River (Water - Blocked)
+    val riverX = mapW * 0.5f - 75f
+    // River segment above road
+    drawRect(
+        color = Color(0xFF1B3A4B),
+        topLeft = Offset(riverX - camX, -camY),
+        size = Size(150f, roadY)
+    )
+    // River segment below road
+    drawRect(
+        color = Color(0xFF1B3A4B),
+        topLeft = Offset(riverX - camX, roadY + 100f - camY),
+        size = Size(150f, mapH - (roadY + 100f))
+    )
+
+    // Bridge crossing over the river
+    drawRect(
+        color = Color(0xFF4E473F),
+        topLeft = Offset(riverX - 20f - camX, roadY - camY),
+        size = Size(190f, 100f)
+    )
+    drawRect(
+        color = Color(0xFF2E2721),
+        topLeft = Offset(riverX - 20f - camX, roadY - camY),
+        size = Size(190f, 100f),
+        style = Stroke(width = 3f)
+    )
+
+    // 3. Forest Clusters (Slow speed, high cover)
+    val forestColor = Color(0xFF182819)
+    val forestCenters = listOf(
+        Offset(mapW * 0.25f, mapH * 0.25f),
+        Offset(mapW * 0.25f, mapH * 0.75f),
+        Offset(mapW * 0.75f, mapH * 0.25f),
+        Offset(mapW * 0.75f, mapH * 0.75f),
+        Offset(mapW * 0.5f, mapH * 0.15f)
+    )
+    for (fc in forestCenters) {
+        drawCircle(color = forestColor, radius = 95f, center = Offset(fc.x - camX, fc.y - camY))
+        drawCircle(color = Color(0xFF122013), radius = 65f, center = Offset(fc.x - 10f - camX, fc.y - 10f - camY))
+    }
 
     // Tactical Grid lines every 128px
     val step = 128f

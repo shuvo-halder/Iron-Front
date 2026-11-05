@@ -1,0 +1,57 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/test_units.gd" id="1_test"]
+[ext_resource type="Script" path="res://scripts/managers/tactical_camera.gd" id="2_camera"]
+
+[node name="TestUnitsShowcase" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="TacticalCamera" type="Camera2D" parent="."]
+position = Vector2(0, 0)
+zoom = Vector2(0.9, 0.9)
+script = ExtResource("2_camera")
+
+[node name="LabelsContainer" type="Node2D" parent="."]
+
+[node name="UnitsContainer" type="Node2D" parent="."]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -64.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="AdvanceBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+text = "Allies Advance"
+
+[node name="AttackBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+text = "Axis Attack"
+
+[node name="DamageBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+text = "Apply 25 Damage"
+
+[node name="ResetBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+text = "Reset Showcase"
+
+[connection signal="pressed" from="CanvasLayer/HBoxContainer/AdvanceBtn" to="." method="_on_order_allies_advance_pressed"]
+[connection signal="pressed" from="CanvasLayer/HBoxContainer/AttackBtn" to="." method="_on_order_axis_attack_pressed"]
+[connection signal="pressed" from="CanvasLayer/HBoxContainer/DamageBtn" to="." method="_on_test_damage_pressed"]
+[connection signal="pressed" from="CanvasLayer/HBoxContainer/ResetBtn" to="." method="_on_reset_showcase_pressed"]

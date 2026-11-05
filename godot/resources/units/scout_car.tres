@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "unit_scout_car"
+display_name = "Scout Armored Car"
+unit_type = 3
+team = 0
+hp = 150.0
+speed = 150.0
+damage = 20.0
+range = 240.0
+attack_cooldown = 0.95
+cost = 140
+armor_front = 22.0
+armor_side = 14.0
+armor_rear = 10.0
+armor_penetration = 22.0
+unit_radius = 18.0
+rotation_speed = 4.0
+turret_rotation_speed = 4.5
+projectile_speed = 520.0
+splash_radius = 0.0
