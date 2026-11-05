@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "unit_medium_tank"
+display_name = "M4 Sherman Cruiser"
+unit_type = 2
+faction = 0
+max_health = 180.0
+armor_front = 45.0
+armor_side = 25.0
+armor_rear = 15.0
+move_speed = 110.0
+rotation_speed = 2.8
+acceleration = 320.0
+attack_range = 280.0
+min_attack_range = 0.0
+damage = 40.0
+armor_penetration = 42.0
+reload_time = 1.6
+splash_radius = 16.0
+projectile_speed = 520.0
+turret_rotation_speed = 3.6
+vision_range = 350.0
+unit_radius = 24.0
+deployment_cost = 250

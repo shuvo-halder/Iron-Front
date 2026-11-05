@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "unit_heavy_tank"
+display_name = "Tiger Heavy Vanguard"
+unit_type = 3
+faction = 0
+max_health = 320.0
+armor_front = 85.0
+armor_side = 50.0
+armor_rear = 30.0
+move_speed = 75.0
+rotation_speed = 1.8
+acceleration = 200.0
+attack_range = 330.0
+min_attack_range = 0.0
+damage = 80.0
+armor_penetration = 78.0
+reload_time = 2.8
+splash_radius = 24.0
+projectile_speed = 580.0
+turret_rotation_speed = 2.0
+vision_range = 380.0
+unit_radius = 28.0
+deployment_cost = 450

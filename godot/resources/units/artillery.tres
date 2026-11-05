@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "unit_artillery"
+display_name = "155mm Howitzer Battery"
+unit_type = 4
+faction = 0
+max_health = 90.0
+armor_front = 10.0
+armor_side = 8.0
+armor_rear = 5.0
+move_speed = 50.0
+rotation_speed = 1.2
+acceleration = 150.0
+attack_range = 650.0
+min_attack_range = 180.0
+damage = 110.0
+armor_penetration = 60.0
+reload_time = 4.2
+splash_radius = 55.0
+projectile_speed = 360.0
+turret_rotation_speed = 1.4
+vision_range = 400.0
+unit_radius = 22.0
+deployment_cost = 380

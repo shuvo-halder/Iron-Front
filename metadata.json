@@ -1,0 +1,6 @@
+{
+  "name": "Iron Front",
+  "description": "Offline 2D top-down real-time tactics war game set on the tactical frontlines with armored units, infantry, artillery, and combat maneuvers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
