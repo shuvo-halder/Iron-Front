@@ -40,23 +40,40 @@ func _ready() -> void:
 	_setup_mission()
 
 func _setup_mission() -> void:
-	_spawn_default_armies()
+	_spawn_60_unit_skirmish()
 
-func _spawn_default_armies() -> void:
-	# Allied forces (Player - Left on Road/Grass)
-	_spawn_unit_at("res://resources/units/medium_tank.tres", Vector2(-320, 0), 0) # Road
-	_spawn_unit_at("res://resources/units/medium_tank.tres", Vector2(-360, 60), 0)
-	_spawn_unit_at("res://resources/units/heavy_tank.tres", Vector2(-420, 0), 0)
-	_spawn_unit_at("res://resources/units/artillery.tres", Vector2(-520, -100), 0)
-	_spawn_unit_at("res://resources/units/infantry.tres", Vector2(-260, -80), 0) # Near forest
-	_spawn_unit_at("res://resources/units/infantry.tres", Vector2(-260, 80), 0)
-	
-	# Axis forces (Enemy - Right side)
-	_spawn_unit_at("res://resources/units/medium_tank.tres", Vector2(360, 0), 1) # Road
-	_spawn_unit_at("res://resources/units/medium_tank.tres", Vector2(380, 80), 1)
-	_spawn_unit_at("res://resources/units/heavy_tank.tres", Vector2(440, 0), 1)
-	_spawn_unit_at("res://resources/units/infantry.tres", Vector2(280, -90), 1)
-	_spawn_unit_at("res://resources/units/infantry.tres", Vector2(280, 90), 1)
+func _spawn_60_unit_skirmish() -> void:
+	# 30 Allied Units (Team 0, Green)
+	var allied_classes = [
+		"res://resources/units/medium_tank.tres",
+		"res://resources/units/heavy_tank.tres",
+		"res://resources/units/scout_car.tres",
+		"res://resources/units/rifle_squad.tres",
+		"res://resources/units/anti_tank_team.tres",
+		"res://resources/units/combat_engineer.tres"
+	]
+	for i in range(30):
+		var res_path: String = allied_classes[i % allied_classes.size()]
+		var col: int = i % 5
+		var row: int = i / 5
+		var pos := Vector2(-580.0 + col * 55.0, -220.0 + row * 75.0)
+		_spawn_unit_at(res_path, pos, 0)
+
+	# 30 Axis Units (Team 1, Red)
+	var axis_classes = [
+		"res://resources/units/medium_tank.tres",
+		"res://resources/units/heavy_tank.tres",
+		"res://resources/units/scout_car.tres",
+		"res://resources/units/rifle_squad.tres",
+		"res://resources/units/anti_tank_team.tres",
+		"res://resources/units/combat_engineer.tres"
+	]
+	for i in range(30):
+		var res_path: String = axis_classes[i % axis_classes.size()]
+		var col: int = i % 5
+		var row: int = i / 5
+		var pos := Vector2(320.0 + col * 55.0, -220.0 + row * 75.0)
+		_spawn_unit_at(res_path, pos, 1)
 
 func _spawn_unit_at(res_path: String, pos: Vector2, faction: int) -> Unit:
 	var u: Unit
@@ -96,49 +113,50 @@ func _physics_process(delta: float) -> void:
 
 # Gesture Callbacks from InputManager
 func _on_tap_detected(world_pos: Vector2, _screen_pos: Vector2) -> void:
-	var clicked_unit = _find_unit_at(world_pos)
-	
+	var clicked_unit := _find_unit_at(world_pos)
+
 	if clicked_unit != null:
-		if clicked_unit.faction == 0:
+		if clicked_unit.data and clicked_unit.data.team == 0:
 			_select_single(clicked_unit)
 		else:
-			# Tapped enemy with units selected -> Issue Focus Target order
+			# Tapped enemy with units selected -> Issue Focus Target order & spawn red reticle
 			if not selected_units.is_empty():
+				_spawn_order_marker(clicked_unit.global_position, true)
 				for u in selected_units:
-					if is_instance_valid(u) and not u.is_dead:
+					if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
 						u.order_attack_target(clicked_unit)
 	else:
 		# Tapped ground: check if water
 		if battle_tile_map and battle_tile_map.is_position_blocked(world_pos):
-			# Impassable water tile
-			return
-			
+			return # Impassable water tile
+
 		if not selected_units.is_empty():
+			_spawn_order_marker(world_pos, false)
 			_issue_formation_move(world_pos, false)
 		else:
 			_clear_selection()
 
 func _on_long_press_detected(world_pos: Vector2, _screen_pos: Vector2) -> void:
-	# Long press issues tactical ATTACK-MOVE order to point with visual confirmation
 	if selected_units.is_empty():
 		return
 	if battle_tile_map and battle_tile_map.is_position_blocked(world_pos):
 		return
-		
+	_spawn_order_marker(world_pos, true)
 	_issue_formation_move(world_pos, true)
-	
-	var pool = get_node_or_null("/root/ObjectPool")
-	if pool:
-		pool.spawn_explosion(world_pos, 0.45, false)
+
+func _spawn_order_marker(pos: Vector2, is_attack: bool) -> void:
+	var marker := OrderMarker.new()
+	marker.setup_marker(pos, OrderMarker.MarkerType.ATTACK if is_attack else OrderMarker.MarkerType.MOVE)
+	add_child(marker)
 
 func _on_drag_box_completed(world_rect: Rect2) -> void:
 	_clear_selection()
 	for u in all_units:
-		if is_instance_valid(u) and not u.is_dead and u.faction == 0:
+		if is_instance_valid(u) and u.current_state != Unit.State.DEAD and u.data and u.data.team == 0:
 			if world_rect.has_point(u.global_position):
 				selected_units.append(u)
 				u.set_selected(true)
-				
+
 	var bus = get_node_or_null("/root/EventBus")
 	if bus:
 		bus.units_selection_changed.emit(selected_units)
@@ -147,7 +165,7 @@ func _select_single(u: Unit) -> void:
 	_clear_selection()
 	selected_units.append(u)
 	u.set_selected(true)
-	
+
 	var bus = get_node_or_null("/root/EventBus")
 	if bus:
 		bus.unit_selected.emit(u)
@@ -158,30 +176,34 @@ func _clear_selection() -> void:
 		if is_instance_valid(u):
 			u.set_selected(false)
 	selected_units.clear()
-	
+
 	var bus = get_node_or_null("/root/EventBus")
 	if bus:
 		bus.selection_cleared.emit()
 
 func _issue_formation_move(dest_pos: Vector2, is_attack_move: bool) -> void:
-	var count = selected_units.size()
-	var cols = int(ceil(sqrt(count)))
-	var spacing: float = 38.0
-	
+	var count := selected_units.size()
+	if count == 0:
+		return
+
+	# Adaptive tactical grid formation for 1 to 60 units
+	var cols := int(ceil(sqrt(count * 1.5)))
+	var rows := int(ceil(float(count) / float(cols)))
+	var spacing := 44.0
+
 	for i in range(count):
-		var u = selected_units[i]
-		if not is_instance_valid(u) or u.is_dead:
+		var u := selected_units[i]
+		if not is_instance_valid(u) or u.current_state == Unit.State.DEAD:
 			continue
-			
-		var row: int = i / cols
-		var col: int = i % cols
-		var offset := Vector2((col - cols * 0.5) * spacing, (row - cols * 0.5) * spacing)
-		var final_target = dest_pos + offset
-		
-		# Prevent ordering units into water
+
+		var col := i % cols
+		var row := i / cols
+		var offset := Vector2((col - cols * 0.5) * spacing, (row - rows * 0.5) * spacing)
+		var final_target := dest_pos + offset
+
 		if battle_tile_map and battle_tile_map.is_position_blocked(final_target):
 			final_target = dest_pos
-			
+
 		if is_attack_move:
 			u.order_attack_move(final_target)
 		else:

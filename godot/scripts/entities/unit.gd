@@ -40,6 +40,13 @@ func initialize_unit(p_data: UnitData) -> void:
 	if health_bar:
 		health_bar.max_value = data.hp
 		health_bar.value = current_hp
+	if nav_agent:
+		nav_agent.max_speed = data.speed
+		nav_agent.radius = data.unit_radius
+		nav_agent.neighbor_distance = 160.0
+		nav_agent.max_neighbors = 12
+		nav_agent.time_horizon_agents = 0.8
+		nav_agent.avoidance_enabled = true
 	queue_redraw()
 
 func _physics_process(delta: float) -> void:
@@ -162,12 +169,22 @@ func set_attack_target(enemy: Unit) -> void:
 	target_unit = enemy
 	current_state = State.ATTACK
 
+func order_move(dest: Vector2) -> void:
+	set_move_target(dest)
+
+func order_attack_move(dest: Vector2) -> void:
+	set_move_target(dest)
+
+func order_attack_target(enemy: Unit) -> void:
+	set_attack_target(enemy)
+
 func set_selected(selected: bool) -> void:
 	is_selected = selected
 	if selection_ring:
 		selection_ring.visible = is_selected
 	if health_bar:
 		health_bar.visible = is_selected or current_hp < (data.hp if data else 100.0)
+	queue_redraw()
 
 func update_visuals() -> void:
 	if health_bar and data:
@@ -182,9 +199,23 @@ func _draw() -> void:
 		color = Color(0.18, 0.18, 0.18)
 
 	var r := data.unit_radius if data else 18.0
-	var u_type := data.unit_type if data else UnitData.UnitType.RIFLE_SQUAD
 
-	# Procedural placeholder shapes per unit type
+	# Tactical Selection Ring & Brackets
+	if is_selected and current_state != State.DEAD:
+		var ring_color := Color(0.3, 0.95, 0.5, 0.9)
+		draw_arc(Vector2.ZERO, r + 5.0, 0, TAU, 28, ring_color, 1.5)
+		var b_len := 5.0
+		var b_off := r + 6.0
+		draw_line(Vector2(-b_off, -b_off), Vector2(-b_off + b_len, -b_off), ring_color, 2.0)
+		draw_line(Vector2(-b_off, -b_off), Vector2(-b_off, -b_off + b_len), ring_color, 2.0)
+		draw_line(Vector2(b_off, -b_off), Vector2(b_off - b_len, -b_off), ring_color, 2.0)
+		draw_line(Vector2(b_off, -b_off), Vector2(b_off, -b_off + b_len), ring_color, 2.0)
+		draw_line(Vector2(-b_off, b_off), Vector2(-b_off + b_len, b_off), ring_color, 2.0)
+		draw_line(Vector2(-b_off, b_off), Vector2(-b_off, b_off - b_len), ring_color, 2.0)
+		draw_line(Vector2(b_off, b_off), Vector2(b_off - b_len, b_off), ring_color, 2.0)
+		draw_line(Vector2(b_off, b_off), Vector2(b_off, b_off - b_len), ring_color, 2.0)
+
+	var u_type := data.unit_type if data else UnitData.UnitType.RIFLE_SQUAD
 	match u_type:
 		UnitData.UnitType.COMBAT_ENGINEER:
 			# Small diamond shape
