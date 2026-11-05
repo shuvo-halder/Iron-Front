@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.example.game.IronFrontGameScreen
+import com.example.ui.IronFrontApp
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -21,9 +21,9 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF14171A)
+                    color = Color(0xFF101418)
                 ) {
-                    IronFrontGameScreen()
+                    IronFrontApp()
                 }
             }
         }

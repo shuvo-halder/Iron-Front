@@ -1,0 +1,118 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/settings_menu.gd" id="1_settings"]
+
+[node name="SettingsMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_settings")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.1, 0.12, 0.95)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -220.0
+offset_right = 300.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "SETTINGS"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="MusicRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/MusicRow"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Music Volume"
+
+[node name="MusicSlider" type="HSlider" parent="Panel/VBox/MusicRow"]
+custom_minimum_size = Vector2(260, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+value = 75.0
+
+[node name="MusicValue" type="Label" parent="Panel/VBox/MusicRow"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "75%"
+horizontal_alignment = 2
+
+[node name="SfxRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/SfxRow"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "SFX Volume"
+
+[node name="SfxSlider" type="HSlider" parent="Panel/VBox/SfxRow"]
+custom_minimum_size = Vector2(260, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+value = 85.0
+
+[node name="SfxValue" type="Label" parent="Panel/VBox/SfxRow"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "85%"
+horizontal_alignment = 2
+
+[node name="HapticsRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/HapticsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tactile Vibration (Haptics)"
+
+[node name="HapticsCheck" type="CheckButton" parent="Panel/VBox/HapticsRow"]
+layout_mode = 2
+button_pressed = true
+
+[node name="HSeparator2" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="ResetBtn" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Reset Campaign Progress"
+
+[node name="BackBtn" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "BACK TO MENU"
+
+[connection signal="value_changed" from="Panel/VBox/MusicRow/MusicSlider" to="." method="_on_music_slider_value_changed"]
+[connection signal="value_changed" from="Panel/VBox/SfxRow/SfxSlider" to="." method="_on_sfx_slider_value_changed"]
+[connection signal="toggled" from="Panel/VBox/HapticsRow/HapticsCheck" to="." method="_on_haptics_toggled"]
+[connection signal="pressed" from="Panel/VBox/ResetBtn" to="." method="_on_reset_progress_pressed"]
+[connection signal="pressed" from="Panel/VBox/BackBtn" to="." method="_on_back_pressed"]

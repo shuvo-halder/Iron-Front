@@ -1,0 +1,113 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_menu.tscn" id="2_settings"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.09, 0.11, 1)
+
+[node name="Header" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 32.0
+offset_top = 24.0
+offset_right = -32.0
+offset_bottom = 64.0
+grow_horizontal = 2
+
+[node name="VersionLabel" type="Label" parent="Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "IRON FRONT v1.0 • MOBILE LANDSCAPE"
+
+[node name="WarBondsLabel" type="Label" parent="Header"]
+layout_mode = 2
+text = "WAR BONDS: 250 WB"
+
+[node name="MainLayout" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -560.0
+offset_top = -220.0
+offset_right = 560.0
+offset_bottom = 260.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HeroSection" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.4
+alignment = 1
+
+[node name="Title" type="Label" parent="MainLayout/HeroSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 54
+text = "IRON FRONT"
+
+[node name="Subtitle" type="Label" parent="MainLayout/HeroSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Offline 2D Real-Time Tactics War Game"
+
+[node name="ButtonsVBox" type="VBoxContainer" parent="MainLayout"]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="PlayBtn" type="Button" parent="MainLayout/ButtonsVBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "PLAY SKIRMISH"
+
+[node name="CampaignBtn" type="Button" parent="MainLayout/ButtonsVBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "CAMPAIGN"
+
+[node name="UpgradesBtn" type="Button" parent="MainLayout/ButtonsVBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "UPGRADES"
+
+[node name="SettingsBtn" type="Button" parent="MainLayout/ButtonsVBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "SETTINGS"
+
+[node name="QuitBtn" type="Button" parent="MainLayout/ButtonsVBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "QUIT"
+
+[node name="SettingsModal" parent="." instance=ExtResource("2_settings")]
+visible = false
+layout_mode = 1
+
+[connection signal="pressed" from="MainLayout/ButtonsVBox/PlayBtn" to="." method="_on_play_button_pressed"]
+[connection signal="pressed" from="MainLayout/ButtonsVBox/CampaignBtn" to="." method="_on_campaign_button_pressed"]
+[connection signal="pressed" from="MainLayout/ButtonsVBox/UpgradesBtn" to="." method="_on_upgrades_button_pressed"]
+[connection signal="pressed" from="MainLayout/ButtonsVBox/SettingsBtn" to="." method="_on_settings_button_pressed"]
+[connection signal="pressed" from="MainLayout/ButtonsVBox/QuitBtn" to="." method="_on_quit_button_pressed"]

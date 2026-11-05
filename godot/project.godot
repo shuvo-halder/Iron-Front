@@ -8,12 +8,13 @@ config_version=5
 
 config/name="Iron Front"
 config/description="Offline 2D top-down real-time tactics war game"
-run/main_scene="res://scenes/main_game.tscn"
+run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.3", "Mobile")
 boot_splash/bg_color=Color(0.1, 0.11, 0.13, 1)
 
 [autoload]
 
+SceneTransition="*res://scripts/autoload/scene_transition.gd"
 EventBus="*res://scripts/autoload/event_bus.gd"
 GameEvents="*res://scripts/autoload/game_events.gd"
 GameManager="*res://scripts/autoload/game_manager.gd"
