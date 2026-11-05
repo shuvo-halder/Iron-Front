@@ -14,7 +14,11 @@ boot_splash/bg_color=Color(0.1, 0.11, 0.13, 1)
 
 [autoload]
 
+EventBus="*res://scripts/autoload/event_bus.gd"
 GameEvents="*res://scripts/autoload/game_events.gd"
+GameManager="*res://scripts/autoload/game_manager.gd"
+SaveManager="*res://scripts/autoload/save_manager.gd"
+AudioManager="*res://scripts/autoload/audio_manager.gd"
 ObjectPool="*res://scripts/autoload/object_pool.gd"
 
 [display]
