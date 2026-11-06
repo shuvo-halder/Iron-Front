@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="BuildingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "building_turret"
+display_name = "Defense Turret"
+building_type = 3
+faction = 0
+max_health = 500.0
+supply_cost = 120
+build_time = 4.0
+footprint_radius = 28.0
+building_color = Color(0.35, 0.45, 0.55, 1)
+passive_supply_rate = 0.0
+producible_unit_paths = []
+is_defense_turret = true
+turret_damage = 45.0
+turret_range = 300.0
+turret_cooldown = 1.2
+can_target_air = true

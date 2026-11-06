@@ -2,15 +2,20 @@ class_name MainGame
 extends Node2D
 
 ## Top-level battle orchestrator for Iron Front.
-## Coordinates TileMap terrain, mobile input gestures, units, spatial partition, and camera.
+## Coordinates TileMap terrain, mobile input gestures, units, buildings, economy, and camera.
 
 @export var current_mission: MissionData
-@export var unit_scene: PackedScene
+@export var unit_scene: PackedScene = preload("res://scenes/entities/unit.tscn")
+@export var building_scene: PackedScene = preload("res://scenes/entities/building.tscn")
+@export var supply_crate_scene: PackedScene = preload("res://scenes/entities/supply_crate.tscn")
 
 @onready var battle_tile_map: BattleTileMap = $BattleTileMap if has_node("BattleTileMap") else null
 @onready var tactical_camera: TacticalCamera = $TacticalCamera
 @onready var input_manager: InputManager = $InputManager
 @onready var units_container: Node2D = $Units
+@onready var buildings_container: Node2D = $Buildings if has_node("Buildings") else null
+@onready var crates_container: Node2D = $SupplyCrates if has_node("SupplyCrates") else null
+@onready var build_manager: BuildManager = $BuildManager if has_node("BuildManager") else null
 @onready var battle_hud: BattleHUD = $BattleHUD
 
 var spatial_grid: SpatialGrid
@@ -21,58 +26,111 @@ const SPATIAL_GRID_INTERVAL: float = 0.05
 
 func _ready() -> void:
 	spatial_grid = SpatialGrid.new(128.0)
-	
+
 	# Clamp camera to tilemap bounds
 	if battle_tile_map:
 		tactical_camera.set_map_bounds(battle_tile_map.get_map_world_bounds())
-		
+
+	# Wire BuildManager
+	if build_manager:
+		build_manager.setup(self, battle_tile_map)
+
 	# Wire InputManager gestures
 	if input_manager:
 		input_manager.camera = tactical_camera
 		input_manager.tap_detected.connect(_on_tap_detected)
 		input_manager.long_press_detected.connect(_on_long_press_detected)
 		input_manager.drag_box_completed.connect(_on_drag_box_completed)
-		
+
 	var events = get_node_or_null("/root/EventBus")
 	if events:
 		events.unit_killed.connect(_on_unit_killed)
-		
+
 	_setup_mission()
 
 func _setup_mission() -> void:
-	_spawn_60_unit_skirmish()
+	_spawn_base_infrastructure()
+	_spawn_collectible_supply_crates()
+	_spawn_skirmish_forces()
 
-func _spawn_60_unit_skirmish() -> void:
-	# 30 Allied Units (Team 0, Green)
+func _spawn_base_infrastructure() -> void:
+	if not buildings_container:
+		return
+
+	# Allied Headquarters (West Base)
+	_spawn_building_at("res://resources/buildings/hq.tres", Vector2(-750, 0), 0)
+	# Allied Barracks
+	_spawn_building_at("res://resources/buildings/barracks.tres", Vector2(-750, -130), 0)
+	# Allied Defense Turret near the bridge approach
+	_spawn_building_at("res://resources/buildings/turret.tres", Vector2(-360, 0), 0)
+
+	# Axis Headquarters (East Base)
+	_spawn_building_at("res://resources/buildings/hq.tres", Vector2(750, 0), 1)
+	# Axis Factory
+	_spawn_building_at("res://resources/buildings/factory.tres", Vector2(750, 130), 1)
+	# Axis Defense Turret near east bridge approach
+	_spawn_building_at("res://resources/buildings/turret.tres", Vector2(360, 0), 1)
+
+func _spawn_building_at(res_path: String, pos: Vector2, faction: int) -> Building:
+	var b_node: Building = building_scene.instantiate() as Building
+	var b_data = load(res_path) as BuildingData
+	if b_data:
+		var dup = b_data.duplicate() as BuildingData
+		dup.faction = faction
+		b_node.data = dup
+	b_node.global_position = pos
+	b_node.is_under_construction = false
+	buildings_container.add_child(b_node)
+	return b_node
+
+func _spawn_collectible_supply_crates() -> void:
+	if not crates_container:
+		return
+
+	var crate_positions := [
+		Vector2(-180, -220),
+		Vector2(180, -220),
+		Vector2(-180, 220),
+		Vector2(180, 220),
+		Vector2(0, 0),       # High-value crate on the central bridge!
+		Vector2(-450, 240),
+		Vector2(450, -240)
+	]
+
+	for pos in crate_positions:
+		var crate: SupplyCrate = supply_crate_scene.instantiate() as SupplyCrate
+		crate.global_position = pos
+		crates_container.add_child(crate)
+
+func _spawn_skirmish_forces() -> void:
+	# 15 Allied Starting Units
 	var allied_classes = [
+		"res://resources/units/attack_helicopter.tres",
 		"res://resources/units/medium_tank.tres",
-		"res://resources/units/heavy_tank.tres",
 		"res://resources/units/scout_car.tres",
 		"res://resources/units/rifle_squad.tres",
-		"res://resources/units/anti_tank_team.tres",
-		"res://resources/units/combat_engineer.tres"
+		"res://resources/units/anti_tank_team.tres"
 	]
-	for i in range(30):
+	for i in range(15):
 		var res_path: String = allied_classes[i % allied_classes.size()]
-		var col: int = i % 5
-		var row: int = i / 5
-		var pos := Vector2(-580.0 + col * 55.0, -220.0 + row * 75.0)
+		var col: int = i % 3
+		var row: int = i / 3
+		var pos := Vector2(-540.0 + col * 55.0, -120.0 + row * 60.0)
 		_spawn_unit_at(res_path, pos, 0)
 
-	# 30 Axis Units (Team 1, Red)
+	# 15 Axis Starting Units
 	var axis_classes = [
+		"res://resources/units/attack_helicopter.tres",
 		"res://resources/units/medium_tank.tres",
-		"res://resources/units/heavy_tank.tres",
 		"res://resources/units/scout_car.tres",
 		"res://resources/units/rifle_squad.tres",
-		"res://resources/units/anti_tank_team.tres",
-		"res://resources/units/combat_engineer.tres"
+		"res://resources/units/anti_tank_team.tres"
 	]
-	for i in range(30):
+	for i in range(15):
 		var res_path: String = axis_classes[i % axis_classes.size()]
-		var col: int = i % 5
-		var row: int = i / 5
-		var pos := Vector2(320.0 + col * 55.0, -220.0 + row * 75.0)
+		var col: int = i % 3
+		var row: int = i / 3
+		var pos := Vector2(400.0 + col * 55.0, -120.0 + row * 60.0)
 		_spawn_unit_at(res_path, pos, 1)
 
 func _spawn_unit_at(res_path: String, pos: Vector2, faction: int) -> Unit:
@@ -81,60 +139,97 @@ func _spawn_unit_at(res_path: String, pos: Vector2, faction: int) -> Unit:
 		u = unit_scene.instantiate() as Unit
 	else:
 		u = Unit.new()
-		
+
 	var u_data = load(res_path) as UnitData
 	if u_data:
 		var duplicate_data = u_data.duplicate() as UnitData
-		duplicate_data.faction = faction
+		duplicate_data.team = faction
 		u.data = duplicate_data
 	u.global_position = pos
-	u.faction = faction
+	if faction == 1:
+		u.rotation = PI
 	units_container.add_child(u)
 	all_units.append(u)
 	return u
 
 func _physics_process(delta: float) -> void:
-	# Apply terrain speed modifiers to units
+	# Update building placement ghost
+	if build_manager and build_manager.is_building_mode:
+		var mouse_world := get_global_mouse_position()
+		build_manager.update_ghost_position(mouse_world)
+
+	# Terrain speed modifiers
 	if battle_tile_map:
 		for u in all_units:
-			if is_instance_valid(u) and not u.is_dead and u.data:
+			if is_instance_valid(u) and u.current_state != Unit.State.DEAD and u.data:
 				var spd_mult = battle_tile_map.get_speed_multiplier(u.global_position)
-				# Dynamically adjust speed based on road boost or forest drag
 				u.velocity *= spd_mult
 
-	# Re-index spatial hash grid
+	# Re-index spatial grid
 	spatial_grid_update_timer -= delta
 	if spatial_grid_update_timer <= 0.0:
 		spatial_grid_update_timer = SPATIAL_GRID_INTERVAL
 		spatial_grid.clear()
 		for u in all_units:
-			if is_instance_valid(u) and not u.is_dead:
+			if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
 				spatial_grid.insert(u)
 
 # Gesture Callbacks from InputManager
 func _on_tap_detected(world_pos: Vector2, _screen_pos: Vector2) -> void:
-	var clicked_unit := _find_unit_at(world_pos)
+	# 1. If currently in Building Placement mode, attempt placement
+	if build_manager and build_manager.is_building_mode:
+		build_manager.update_ghost_position(world_pos)
+		if build_manager.try_place_building():
+			_spawn_order_marker(world_pos, false)
+		return
 
+	# 2. If setting a Rally Point for selected building
+	if battle_hud and battle_hud.is_setting_rally_point and is_instance_valid(battle_hud.tracked_building):
+		battle_hud.tracked_building.set_rally_point(world_pos)
+		battle_hud.is_setting_rally_point = false
+		_spawn_order_marker(world_pos, false)
+		return
+
+	# 3. Check if tapped on a Building
+	var clicked_building := _find_building_at(world_pos)
+	if clicked_building != null:
+		if clicked_building.data and clicked_building.data.faction == 0:
+			_clear_selection()
+			clicked_building.set_selected(true)
+			return
+		else:
+			# Enemy building tapped with units selected -> Issue Focus Target order
+			if not selected_units.is_empty():
+				_spawn_order_marker(clicked_building.global_position, true)
+				for u in selected_units:
+					if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
+						u.order_attack_move(clicked_building.global_position)
+				return
+
+	# 4. Check if tapped on a Unit
+	var clicked_unit := _find_unit_at(world_pos)
 	if clicked_unit != null:
 		if clicked_unit.data and clicked_unit.data.team == 0:
 			_select_single(clicked_unit)
 		else:
-			# Tapped enemy with units selected -> Issue Focus Target order & spawn red reticle
+			# Tapped enemy unit with units selected -> Issue Focus Target order
 			if not selected_units.is_empty():
 				_spawn_order_marker(clicked_unit.global_position, true)
 				for u in selected_units:
 					if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
 						u.order_attack_target(clicked_unit)
 	else:
-		# Tapped ground: check if water
+		# Tapped ground
 		if battle_tile_map and battle_tile_map.is_position_blocked(world_pos):
-			return # Impassable water tile
+			return # Blocked river water
 
 		if not selected_units.is_empty():
 			_spawn_order_marker(world_pos, false)
 			_issue_formation_move(world_pos, false)
 		else:
 			_clear_selection()
+			if battle_hud:
+				battle_hud._on_close_building_card_pressed()
 
 func _on_long_press_detected(world_pos: Vector2, _screen_pos: Vector2) -> void:
 	if selected_units.is_empty():
@@ -186,7 +281,6 @@ func _issue_formation_move(dest_pos: Vector2, is_attack_move: bool) -> void:
 	if count == 0:
 		return
 
-	# Adaptive tactical grid formation for 1 to 60 units
 	var cols := int(ceil(sqrt(count * 1.5)))
 	var rows := int(ceil(float(count) / float(cols)))
 	var spacing := 44.0
@@ -211,35 +305,21 @@ func _issue_formation_move(dest_pos: Vector2, is_attack_move: bool) -> void:
 
 func _find_unit_at(world_pos: Vector2) -> Unit:
 	for u in all_units:
-		if is_instance_valid(u) and not u.is_dead:
+		if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
 			var r = u.data.unit_radius if u.data else 20.0
 			if world_pos.distance_to(u.global_position) <= r * 1.5:
 				return u
 	return null
 
-func find_nearest_enemy(from_pos: Vector2, search_radius: float, my_faction: int) -> Unit:
-	var enemy_faction: int = 1 if my_faction == 0 else 0
-	var candidates = spatial_grid.query_radius(from_pos, search_radius, enemy_faction)
-	var closest: Unit = null
-	var min_dist_sq: float = INF
-	
-	for cand in candidates:
-		if cand is Unit and not cand.is_dead:
-			var d_sq = from_pos.distance_squared_to(cand.global_position)
-			if d_sq < min_dist_sq:
-				min_dist_sq = d_sq
-				closest = cand
-	return closest
-
-func get_all_allied_units() -> Array[Unit]:
-	var res: Array[Unit] = []
-	for u in all_units:
-		if is_instance_valid(u) and not u.is_dead and u.faction == 0:
-			res.append(u)
-	return res
-
-func get_all_units() -> Array[Unit]:
-	return all_units
+func _find_building_at(world_pos: Vector2) -> Building:
+	if not buildings_container:
+		return null
+	for child in buildings_container.get_children():
+		if child is Building and is_instance_valid(child):
+			var r = child.data.footprint_radius if child.data else 45.0
+			if world_pos.distance_to(child.global_position) <= r * 1.1:
+				return child
+	return null
 
 func _on_unit_killed(dead_unit: CharacterBody2D, _killer: CharacterBody2D) -> void:
 	all_units.erase(dead_unit)
@@ -250,10 +330,10 @@ func _check_victory_conditions() -> void:
 	var allies = 0
 	var enemies = 0
 	for u in all_units:
-		if is_instance_valid(u) and not u.is_dead:
-			if u.faction == 0: allies += 1
-			elif u.faction == 1: enemies += 1
-			
+		if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
+			if u.data and u.data.team == 0: allies += 1
+			elif u.data and u.data.team == 1: enemies += 1
+
 	var bus = get_node_or_null("/root/EventBus")
 	if enemies == 0 and allies > 0:
 		if bus:

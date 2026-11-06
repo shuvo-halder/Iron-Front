@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="BuildingData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "building_factory"
+display_name = "Armor Factory"
+building_type = 2
+faction = 0
+max_health = 850.0
+supply_cost = 280
+build_time = 8.0
+footprint_radius = 48.0
+building_color = Color(0.45, 0.45, 0.5, 1)
+passive_supply_rate = 0.0
+producible_unit_paths = [
+	"res://resources/units/scout_car.tres",
+	"res://resources/units/medium_tank.tres",
+	"res://resources/units/heavy_tank.tres"
+]
+is_defense_turret = false
+turret_damage = 0.0
+turret_range = 0.0
+turret_cooldown = 0.0
+can_target_air = false

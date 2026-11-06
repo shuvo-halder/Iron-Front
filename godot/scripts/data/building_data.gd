@@ -3,32 +3,33 @@ extends Resource
 
 ## Data-driven resource defining structure stats, cost, footprint, and production capabilities.
 
-enum BuildingCategory {
-	COMMAND,
-	PRODUCTION,
-	DEFENSE,
-	RESOURCE
+enum BuildingType {
+	HQ,
+	BARRACKS,
+	FACTORY,
+	TURRET
 }
 
 @export_group("Identity")
-@export var id: String = "building_barracks"
-@export var display_name: String = "Barracks"
-@export var category: BuildingCategory = BuildingCategory.PRODUCTION
-@export var faction: int = 0
+@export var id: String = "building_hq"
+@export var display_name: String = "Headquarters"
+@export var building_type: BuildingType = BuildingType.HQ
+@export var faction: int = 0 # 0: Allied, 1: Axis
 
 @export_group("Stats & Cost")
-@export var max_health: float = 600.0
-@export var supply_cost: int = 150
-@export var build_time_seconds: float = 8.0
-@export var grid_footprint: Vector2i = Vector2i(2, 2)
+@export var max_health: float = 1200.0
+@export var supply_cost: int = 400
+@export var build_time: float = 10.0
+@export var footprint_radius: float = 48.0
+@export var building_color: Color = Color(0.2, 0.7, 0.4)
 
-@export_group("Functionality")
-@export var supply_income_per_sec: float = 0.0
-@export var producible_unit_ids: Array[String] = ["unit_infantry", "unit_antitank"]
-@export var vision_range: float = 300.0
+@export_group("Production & Economy")
+@export var passive_supply_rate: float = 10.0 ## Passive income in supply/sec
+@export var producible_unit_paths: Array[String] = []
 
-@export_group("Defense")
-@export var has_turret: bool = false
-@export var turret_damage: float = 0.0
-@export var turret_range: float = 0.0
-@export var turret_fire_rate: float = 0.0
+@export_group("Defense Turret")
+@export var is_defense_turret: bool = false
+@export var turret_damage: float = 45.0
+@export var turret_range: float = 300.0
+@export var turret_cooldown: float = 1.2
+@export var can_target_air: bool = true ## Turrets shoot surface-to-air rockets

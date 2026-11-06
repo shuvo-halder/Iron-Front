@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "unit_attack_helicopter"
+display_name = "Attack Helicopter"
+unit_type = 6
+team = 0
+armor_type = 2
+damage_type = 1
+projectile_type = 1
+can_target_air = false
+hp = 120.0
+speed = 190.0
+damage = 45.0
+range = 280.0
+attack_cooldown = 1.4
+cost = 220
+armor_front = 12.0
+armor_side = 10.0
+armor_rear = 8.0
+armor_penetration = 35.0
+unit_radius = 24.0
+rotation_speed = 4.2
+turret_rotation_speed = 4.2
+projectile_speed = 520.0
+splash_radius = 55.0

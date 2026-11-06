@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_game.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/systems/battle_tile_map.gd" id="2_tilemap"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/managers/tactical_camera.gd" id="4_camera"]
 [ext_resource type="Script" path="res://scripts/managers/input_manager.gd" id="5_input"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle_hud.tscn" id="6_hud"]
+[ext_resource type="Script" path="res://scripts/systems/build_manager.gd" id="7_build"]
 
 [node name="MainGame" type="Node2D"]
 script = ExtResource("1_main")
@@ -25,6 +26,14 @@ script = ExtResource("4_camera")
 script = ExtResource("5_input")
 camera = NodePath("../TacticalCamera")
 
+[node name="SupplyCrates" type="Node2D" parent="."]
+
+[node name="Buildings" type="Node2D" parent="."]
+
 [node name="Units" type="Node2D" parent="."]
+
+[node name="BuildManager" type="Node2D" parent="."]
+visible = false
+script = ExtResource("7_build")
 
 [node name="BattleHUD" parent="." instance=ExtResource("6_hud")]

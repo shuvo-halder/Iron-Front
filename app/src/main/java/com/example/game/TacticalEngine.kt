@@ -6,17 +6,33 @@ import kotlin.random.Random
 class TacticalEngine {
 
     val units = mutableListOf<TacticalUnit>()
-    
+    val buildings = mutableListOf<TacticalBuilding>()
+    val supplyCrates = mutableListOf<TacticalSupplyCrate>()
+
     // Object pools for zero garbage collection
-    private val maxProjectiles = 100
+    private val maxProjectiles = 120
     val projectilePool = Array(maxProjectiles) { TacticalProjectile() }
     
-    private val maxParticles = 80
+    private val maxParticles = 100
     val particlePool = Array(maxParticles) { CombatParticle() }
 
     var nextUnitId = 1
+    var nextBuildingId = 1
+    var nextCrateId = 1
+
     var mapWidth = 2400f
     var mapHeight = 1500f
+
+    // Live Economy
+    var currentSupply: Float = 450f
+    var passiveIncomeRate: Float = 16f
+    val MAX_SUPPLY = 2000f
+
+    // Building Placement Mode
+    var pendingBuildingToPlace: BuildingClass? = null
+    var ghostX: Float = 0f
+    var ghostY: Float = 0f
+    var isGhostPlacementValid: Boolean = false
 
     // Battle stats
     var playerUnitsLost = 0
@@ -29,51 +45,51 @@ class TacticalEngine {
         MissionScenario(
             id = "iron_shield",
             title = "Operation Iron Shield",
-            briefing = "An enemy armored division is advancing across the plains. Form a defensive line and eliminate the enemy armor.",
+            briefing = "An enemy armored division with air support is advancing. Build defense turrets, recruit reinforcements from Barracks, and hold the line.",
             playerArmies = listOf(
-                UnitClass.MEDIUM_TANK, UnitClass.MEDIUM_TANK,
-                UnitClass.HEAVY_TANK,
-                UnitClass.ARTILLERY,
-                UnitClass.INFANTRY, UnitClass.INFANTRY, UnitClass.INFANTRY
-            ),
-            enemyArmies = listOf(
-                UnitClass.MEDIUM_TANK, UnitClass.MEDIUM_TANK,
-                UnitClass.SCOUT_CAR, UnitClass.SCOUT_CAR,
-                UnitClass.HEAVY_TANK,
+                UnitClass.MEDIUM_TANK,
+                UnitClass.ROCKET_SOLDIER, UnitClass.ROCKET_SOLDIER,
                 UnitClass.INFANTRY, UnitClass.INFANTRY
             ),
-            objectiveDescription = "Destroy all Axis armor and recon forces"
+            enemyArmies = listOf(
+                UnitClass.MEDIUM_TANK,
+                UnitClass.SCOUT_CAR,
+                UnitClass.ATTACK_HELICOPTER,
+                UnitClass.INFANTRY, UnitClass.ROCKET_SOLDIER
+            ),
+            objectiveDescription = "Build base structures, harvest supply crates, and neutralize Axis assault"
         ),
         MissionScenario(
             id = "desert_hammer",
             title = "Operation Desert Hammer",
-            briefing = "Axis motorized spearhead is refueling. Rapidly maneuver your mechanized platoon to flank their heavy position.",
+            briefing = "Axis motorized spearhead is refueling. Rapidly construct an Armor Factory to produce heavy tanks.",
             playerArmies = listOf(
-                UnitClass.SCOUT_CAR, UnitClass.SCOUT_CAR,
-                UnitClass.MEDIUM_TANK, UnitClass.MEDIUM_TANK,
-                UnitClass.ARTILLERY, UnitClass.ARTILLERY
+                UnitClass.SCOUT_CAR,
+                UnitClass.MEDIUM_TANK,
+                UnitClass.ROCKET_SOLDIER
             ),
             enemyArmies = listOf(
-                UnitClass.HEAVY_TANK, UnitClass.HEAVY_TANK,
+                UnitClass.HEAVY_TANK,
                 UnitClass.MEDIUM_TANK,
-                UnitClass.INFANTRY, UnitClass.INFANTRY, UnitClass.INFANTRY, UnitClass.INFANTRY
+                UnitClass.DEFENSE_TURRET,
+                UnitClass.INFANTRY, UnitClass.ROCKET_SOLDIER
             ),
-            objectiveDescription = "Neutralize the enemy heavy tank strongpoint"
+            objectiveDescription = "Establish armored production and eliminate Axis stronghold"
         ),
         MissionScenario(
             id = "skirmish_100",
-            title = "Full Front Skirmish (100 Units)",
-            briefing = "Massive combined arms battle testing 100 active units at 60 FPS on Android hardware.",
-            playerArmies = List(15) { UnitClass.INFANTRY } +
-                    List(12) { UnitClass.MEDIUM_TANK } +
-                    List(6) { UnitClass.HEAVY_TANK } +
-                    List(5) { UnitClass.ARTILLERY } +
-                    List(12) { UnitClass.SCOUT_CAR },
-            enemyArmies = List(15) { UnitClass.INFANTRY } +
-                    List(12) { UnitClass.MEDIUM_TANK } +
-                    List(6) { UnitClass.HEAVY_TANK } +
-                    List(5) { UnitClass.ARTILLERY } +
-                    List(12) { UnitClass.SCOUT_CAR },
+            title = "Full Front Combined Arms (60-100 Units)",
+            briefing = "Massive combined arms battle testing infantry, armor, rockets, buildings, and air support at 60 FPS on Android hardware.",
+            playerArmies = List(6) { UnitClass.INFANTRY } +
+                    List(4) { UnitClass.ROCKET_SOLDIER } +
+                    List(4) { UnitClass.MEDIUM_TANK } +
+                    List(2) { UnitClass.HEAVY_TANK } +
+                    List(2) { UnitClass.ATTACK_HELICOPTER },
+            enemyArmies = List(6) { UnitClass.INFANTRY } +
+                    List(4) { UnitClass.ROCKET_SOLDIER } +
+                    List(4) { UnitClass.MEDIUM_TANK } +
+                    List(2) { UnitClass.HEAVY_TANK } +
+                    List(2) { UnitClass.ATTACK_HELICOPTER },
             objectiveDescription = "Engage in full-scale combined arms tactical warfare"
         )
     )
@@ -87,7 +103,15 @@ class TacticalEngine {
     fun loadScenario(scenario: MissionScenario) {
         currentScenario = scenario
         units.clear()
+        buildings.clear()
+        supplyCrates.clear()
+
         nextUnitId = 1
+        nextBuildingId = 1
+        nextCrateId = 1
+        currentSupply = 450f
+        pendingBuildingToPlace = null
+
         playerUnitsLost = 0
         enemyUnitsDestroyed = 0
         shotsDeflected = 0
@@ -97,10 +121,34 @@ class TacticalEngine {
         projectilePool.forEach { it.active = false }
         particlePool.forEach { it.active = false }
 
-        // Spawn player units on left side
-        val pStartX = 350f
+        // Spawn Base Structures
+        // Allied Base
+        spawnBuilding(BuildingClass.HQ, Faction.ALLIED, 280f, mapHeight / 2f)
+        spawnBuilding(BuildingClass.BARRACKS, Faction.ALLIED, 280f, mapHeight / 2f - 140f)
+        spawnBuilding(BuildingClass.TURRET, Faction.ALLIED, 520f, mapHeight / 2f)
+
+        // Axis Base
+        spawnBuilding(BuildingClass.HQ, Faction.AXIS, mapWidth - 280f, mapHeight / 2f)
+        spawnBuilding(BuildingClass.FACTORY, Faction.AXIS, mapWidth - 280f, mapHeight / 2f + 140f)
+        spawnBuilding(BuildingClass.TURRET, Faction.AXIS, mapWidth - 520f, mapHeight / 2f)
+
+        // Spawn Collectible Supply Crates
+        val cratePositions = listOf(
+            Pair(mapWidth * 0.5f, mapHeight * 0.5f), // Central bridge crate
+            Pair(mapWidth * 0.35f, mapHeight * 0.25f),
+            Pair(mapWidth * 0.65f, mapHeight * 0.25f),
+            Pair(mapWidth * 0.35f, mapHeight * 0.75f),
+            Pair(mapWidth * 0.65f, mapHeight * 0.75f),
+            Pair(mapWidth * 0.5f, 150f)
+        )
+        cratePositions.forEach { (cx, cy) ->
+            supplyCrates.add(TacticalSupplyCrate(id = nextCrateId++, x = cx, y = cy, value = 75f))
+        }
+
+        // Spawn player units
+        val pStartX = 420f
         val pStartY = mapHeight / 2f
-        val pSpacing = 65f
+        val pSpacing = 60f
         val pCols = ceil(sqrt(scenario.playerArmies.size.toDouble())).toInt()
 
         scenario.playerArmies.forEachIndexed { index, uClass ->
@@ -111,10 +159,10 @@ class TacticalEngine {
             spawnUnit(uClass, Faction.ALLIED, x, y, 0f)
         }
 
-        // Spawn enemy units on right side
-        val eStartX = mapWidth - 450f
+        // Spawn enemy units
+        val eStartX = mapWidth - 420f
         val eStartY = mapHeight / 2f
-        val eSpacing = 65f
+        val eSpacing = 60f
         val eCols = ceil(sqrt(scenario.enemyArmies.size.toDouble())).toInt()
 
         scenario.enemyArmies.forEachIndexed { index, uClass ->
@@ -126,7 +174,24 @@ class TacticalEngine {
         }
     }
 
-    private fun spawnUnit(uClass: UnitClass, faction: Faction, x: Float, y: Float, initialAngle: Float): TacticalUnit {
+    fun spawnBuilding(bClass: BuildingClass, faction: Faction, x: Float, y: Float, underConstruction: Boolean = false): TacticalBuilding {
+        val b = TacticalBuilding(
+            id = nextBuildingId++,
+            buildingClass = bClass,
+            faction = faction,
+            x = x,
+            y = y,
+            hp = bClass.maxHp,
+            isUnderConstruction = underConstruction,
+            buildTimer = if (underConstruction) bClass.buildTimeSec else 0f,
+            rallyX = if (faction == Faction.ALLIED) x + bClass.radius + 60f else x - bClass.radius - 60f,
+            rallyY = y
+        )
+        buildings.add(b)
+        return b
+    }
+
+    fun spawnUnit(uClass: UnitClass, faction: Faction, x: Float, y: Float, initialAngle: Float): TacticalUnit {
         val unit = TacticalUnit(
             id = nextUnitId++,
             unitClass = uClass,
@@ -144,7 +209,112 @@ class TacticalEngine {
     fun update(deltaSec: Float) {
         val dt = deltaSec.coerceIn(0.001f, 0.05f)
 
-        // 1. Update Projectiles
+        // 1. Passive Supply Economy
+        var currentRate = 6f
+        for (b in buildings) {
+            if (!b.isDestroyed && !b.isUnderConstruction && b.faction == Faction.ALLIED) {
+                currentRate += b.buildingClass.passiveSupplyRate
+            }
+        }
+        passiveIncomeRate = currentRate
+        currentSupply = min(currentSupply + passiveIncomeRate * dt, MAX_SUPPLY)
+
+        // 2. Supply Crate Collection
+        for (crate in supplyCrates) {
+            if (crate.collected) continue
+            for (u in units) {
+                if (u.faction == Faction.ALLIED && !u.isDestroyed) {
+                    val d = hypot(u.x - crate.x, u.y - crate.y)
+                    if (d <= 36f) {
+                        crate.collected = true
+                        currentSupply = min(currentSupply + crate.value, MAX_SUPPLY)
+                        spawnExplosion(crate.x, crate.y, false)
+                        TacticalAudio.playOrderBeep()
+                        break
+                    }
+                }
+            }
+        }
+
+        // 3. Update Buildings (Construction, Production Queues, Turrets)
+        for (b in buildings) {
+            if (b.isDestroyed) continue
+
+            // Construction timer
+            if (b.isUnderConstruction) {
+                b.buildTimer -= dt
+                if (b.buildTimer <= 0f) {
+                    b.isUnderConstruction = false
+                    spawnExplosion(b.x, b.y, false)
+                }
+                continue
+            }
+
+            // Production queue
+            if (b.queue.isNotEmpty()) {
+                b.productionTimer -= dt
+                if (b.productionTimer <= 0f) {
+                    val completedClass = b.queue.removeAt(0)
+                    val spawnX = b.x + (if (b.faction == Faction.ALLIED) b.buildingClass.radius + 20f else -b.buildingClass.radius - 20f)
+                    val spawnY = b.y
+                    val newUnit = spawnUnit(completedClass, b.faction, spawnX, spawnY, if (b.faction == Faction.ALLIED) 0f else PI.toFloat())
+                    
+                    // March to rally point
+                    if (b.rallyX != 0f) {
+                        newUnit.targetX = b.rallyX
+                        newUnit.targetY = b.rallyY
+                        newUnit.state = UnitState.MOVE
+                    }
+
+                    if (b.queue.isNotEmpty()) {
+                        b.productionTotalTime = max(b.queue[0].reloadTimeSec * 3.5f, 3.0f)
+                        b.productionTimer = b.productionTotalTime
+                    }
+                }
+            }
+
+            // Automated Defense Turret
+            if (b.buildingClass.isTurret) {
+                if (b.reloadTimer > 0f) {
+                    b.reloadTimer -= dt
+                } else {
+                    val enemyFaction = if (b.faction == Faction.ALLIED) Faction.AXIS else Faction.ALLIED
+                    var closestEnemy: TacticalUnit? = null
+                    var minDist = b.buildingClass.turretRange
+
+                    for (u in units) {
+                        if (u.isDestroyed || u.faction != enemyFaction) continue
+                        val dist = hypot(u.x - b.x, u.y - b.y)
+                        if (dist <= minDist) {
+                            minDist = dist
+                            closestEnemy = u
+                        }
+                    }
+
+                    if (closestEnemy != null) {
+                        b.reloadTimer = 1.2f
+                        b.turretAngleRad = atan2(closestEnemy.y - b.y, closestEnemy.x - b.x)
+                        spawnMuzzleFlash(b.x, b.y, cos(b.turretAngleRad), sin(b.turretAngleRad))
+                        spawnProjectile(
+                            startX = b.x + cos(b.turretAngleRad) * 20f,
+                            startY = b.y + sin(b.turretAngleRad) * 20f,
+                            targetX = closestEnemy.x,
+                            targetY = closestEnemy.y,
+                            speed = 500f,
+                            damage = b.buildingClass.turretDamage,
+                            armorPen = 40f,
+                            splash = 35f,
+                            faction = b.faction,
+                            projType = ProjectileType.ROCKET,
+                            dmgType = DamageType.EXPLOSIVE,
+                            isArtillery = false
+                        )
+                    }
+                }
+            }
+        }
+
+        // 4. Update Projectiles
         for (i in 0 until maxProjectiles) {
             val proj = projectilePool[i]
             if (!proj.active) continue
@@ -154,31 +324,55 @@ class TacticalEngine {
             proj.y += proj.vy * dt
             proj.distanceTraveled += moveDist
 
-            // Check collision with enemy units
+            // Check collision with units
             var hit = false
             for (u in units) {
                 if (u.isDestroyed || u.faction == proj.faction) continue
+
+                if (u.unitClass.armorType == ArmorType.AIR && proj.damageType != DamageType.EXPLOSIVE) {
+                    continue
+                }
+
                 val dx = u.x - proj.x
                 val dy = u.y - proj.y
                 val distSq = dx * dx + dy * dy
                 val hitRadius = u.unitClass.radius + 6f
                 if (distSq <= hitRadius * hitRadius) {
-                    applyDamageToUnit(u, proj.damage, proj.armorPen, proj.vx, proj.vy)
+                    applyDamageToUnit(u, proj.damage, proj.armorPen, proj.vx, proj.vy, proj.damageType)
                     hit = true
                     break
                 }
             }
 
+            // Check collision with buildings
+            if (!hit) {
+                for (b in buildings) {
+                    if (b.isDestroyed || b.faction == proj.faction) continue
+                    val dx = b.x - proj.x
+                    val dy = b.y - proj.y
+                    if (dx * dx + dy * dy <= b.buildingClass.radius * b.buildingClass.radius) {
+                        b.hp -= proj.damage
+                        spawnHitSpark(b.x, b.y, -proj.vx / 500f, -proj.vy / 500f)
+                        if (b.hp <= 0f) {
+                            b.isDestroyed = true
+                            spawnDeathWreckage(b.x, b.y, true)
+                        }
+                        hit = true
+                        break
+                    }
+                }
+            }
+
             if (hit || proj.distanceTraveled >= proj.maxDistance) {
                 proj.active = false
-                spawnExplosion(proj.x, proj.y, proj.isArtillery)
+                spawnExplosion(proj.x, proj.y, proj.isArtillery || proj.projectileType == ProjectileType.TANK_SHELL)
                 if (proj.splashRadius > 0f) {
-                    applySplashDamage(proj.x, proj.y, proj.splashRadius, proj.damage * 0.7f, proj.armorPen * 0.6f, proj.faction)
+                    applySplashDamage(proj.x, proj.y, proj.splashRadius, proj.damage * 0.75f, proj.armorPen * 0.6f, proj.faction, proj.damageType)
                 }
             }
         }
 
-        // 2. Update Particles
+        // 5. Update Particles
         for (i in 0 until maxParticles) {
             val p = particlePool[i]
             if (!p.active) continue
@@ -188,7 +382,7 @@ class TacticalEngine {
             }
         }
 
-        // 3. Update Units
+        // 6. Update Units
         var alliedCount = 0
         var axisCount = 0
 
@@ -201,25 +395,21 @@ class TacticalEngine {
                 u.reloadTimer -= dt
             }
 
-            // Staggered AI target scan
             u.targetScanTimer -= dt
             if (u.targetScanTimer <= 0f) {
                 u.targetScanTimer = 0.18f + Random.nextFloat() * 0.06f
                 evaluateUnitTargeting(u)
             }
 
-            // State Machine
             when (u.state) {
-                UnitState.IDLE -> {
-                    alignTurretToTarget(u, dt)
-                }
+                UnitState.IDLE -> alignTurretToTarget(u, dt)
                 UnitState.MOVE -> {
                     moveUnitToward(u, u.targetX, u.targetY, dt)
                     alignTurretToTarget(u, dt)
                 }
                 UnitState.ATTACK_MOVE -> {
                     val target = u.targetUnitId?.let { id -> units.firstOrNull { it.id == id && !it.isDestroyed } }
-                    if (target != null) {
+                    if (target != null && canUnitTarget(u, target)) {
                         val dist = hypot(target.x - u.x, target.y - u.y)
                         if (dist <= u.unitClass.attackRange) {
                             u.state = UnitState.ATTACK_TARGET
@@ -233,16 +423,14 @@ class TacticalEngine {
                 }
                 UnitState.ATTACK_TARGET -> {
                     val target = u.targetUnitId?.let { id -> units.firstOrNull { it.id == id && !it.isDestroyed } }
-                    if (target == null) {
+                    if (target == null || !canUnitTarget(u, target)) {
                         u.targetUnitId = null
                         u.state = UnitState.IDLE
                     } else {
                         val dist = hypot(target.x - u.x, target.y - u.y)
-                        if (dist > u.unitClass.attackRange * 1.25f) {
-                            // Pursue
+                        if (dist > u.unitClass.attackRange * 1.2f) {
                             moveUnitToward(u, target.x, target.y, dt)
                         } else {
-                            // In firing range
                             alignTurretToTarget(u, dt)
                             attemptFire(u, target)
                         }
@@ -252,14 +440,91 @@ class TacticalEngine {
             }
         }
 
-        // Check Victory
+        // Victory / Defeat check
         if (battleWon == null) {
-            if (axisCount == 0 && alliedCount > 0) {
+            val axisHq = buildings.firstOrNull { it.buildingClass == BuildingClass.HQ && it.faction == Faction.AXIS && !it.isDestroyed }
+            val alliedHq = buildings.firstOrNull { it.buildingClass == BuildingClass.HQ && it.faction == Faction.ALLIED && !it.isDestroyed }
+
+            if (axisCount == 0 && (axisHq == null || axisHq.isDestroyed)) {
                 battleWon = true
-            } else if (alliedCount == 0 && axisCount > 0) {
+            } else if (alliedCount == 0 && (alliedHq == null || alliedHq.isDestroyed)) {
                 battleWon = false
             }
         }
+    }
+
+    fun startBuildingPlacement(bClass: BuildingClass) {
+        pendingBuildingToPlace = bClass
+    }
+
+    fun updateGhostPosition(worldX: Float, worldY: Float) {
+        val bClass = pendingBuildingToPlace ?: return
+        // Snap to 32px
+        ghostX = (round(worldX / 32f) * 32f).coerceIn(100f, mapWidth - 100f)
+        ghostY = (round(worldY / 32f) * 32f).coerceIn(100f, mapHeight - 100f)
+
+        // Validation
+        var valid = currentSupply >= bClass.cost
+        val riverX = mapWidth * 0.5f - 75f
+        if (ghostX in riverX..(riverX + 150f)) {
+            valid = false // Inside river
+        }
+        for (b in buildings) {
+            if (!b.isDestroyed && hypot(b.x - ghostX, b.y - ghostY) < bClass.radius + b.buildingClass.radius + 15f) {
+                valid = false
+                break
+            }
+        }
+        isGhostPlacementValid = valid
+    }
+
+    fun confirmBuildingPlacement(): Boolean {
+        val bClass = pendingBuildingToPlace ?: return false
+        if (!isGhostPlacementValid || currentSupply < bClass.cost) return false
+
+        currentSupply -= bClass.cost
+        spawnBuilding(bClass, Faction.ALLIED, ghostX, ghostY, underConstruction = true)
+        TacticalAudio.playOrderBeep()
+        pendingBuildingToPlace = null
+        return true
+    }
+
+    fun cancelBuildingPlacement() {
+        pendingBuildingToPlace = null
+    }
+
+    fun enqueueUnitProduction(b: TacticalBuilding, uClass: UnitClass): Boolean {
+        if (b.isUnderConstruction || b.queue.size >= 5) return false
+        val cost = (uClass.damage * 4f + uClass.maxHp * 0.5f).toInt()
+        if (currentSupply < cost) return false
+
+        currentSupply -= cost
+        b.queue.add(uClass)
+        if (b.queue.size == 1) {
+            b.productionTotalTime = max(uClass.reloadTimeSec * 3.5f, 3.0f)
+            b.productionTimer = b.productionTotalTime
+        }
+        TacticalAudio.playOrderBeep()
+        return true
+    }
+
+    fun selectSingleBuildingAt(worldX: Float, worldY: Float): TacticalBuilding? {
+        for (b in buildings) {
+            if (b.isDestroyed) continue
+            val dist = hypot(b.x - worldX, b.y - worldY)
+            if (dist <= b.buildingClass.radius * 1.3f) {
+                return b
+            }
+        }
+        return null
+    }
+
+    private fun canUnitTarget(attacker: TacticalUnit, target: TacticalUnit): Boolean {
+        if (target.isDestroyed || target.faction == attacker.faction) return false
+        if (target.unitClass.armorType == ArmorType.AIR) {
+            return attacker.unitClass.canTargetAir
+        }
+        return true
     }
 
     private fun moveUnitToward(u: TacticalUnit, destX: Float, destY: Float, dt: Float) {
@@ -280,7 +545,6 @@ class TacticalEngine {
         val turnSpeed = 3.5f * dt
         u.angleRad += angleDiff.coerceIn(-turnSpeed, turnSpeed)
 
-        // Separation steering against friendly and enemy units
         var sepX = 0f
         var sepY = 0f
         var neighbors = 0
@@ -329,20 +593,20 @@ class TacticalEngine {
     }
 
     private fun evaluateUnitTargeting(u: TacticalUnit) {
-        // If already tracking valid target in range, stick with it
         val cur = u.targetUnitId?.let { id -> units.firstOrNull { it.id == id && !it.isDestroyed } }
-        if (cur != null) {
+        if (cur != null && canUnitTarget(u, cur)) {
             val dist = hypot(cur.x - u.x, cur.y - u.y)
             if (dist <= u.unitClass.attackRange * 1.3f) return
         }
 
-        // Find closest enemy
         var closest: TacticalUnit? = null
         var minDist = Float.MAX_VALUE
         val enemyFaction = if (u.faction == Faction.ALLIED) Faction.AXIS else Faction.ALLIED
 
         for (other in units) {
             if (other.isDestroyed || other.faction != enemyFaction) continue
+            if (!canUnitTarget(u, other)) continue
+
             val dist = hypot(other.x - u.x, other.y - u.y)
             if (dist < minDist) {
                 minDist = dist
@@ -357,7 +621,6 @@ class TacticalEngine {
                     u.state = UnitState.ATTACK_TARGET
                 }
             } else if (u.faction == Faction.AXIS && u.state == UnitState.IDLE) {
-                // Enemy AI aggressive advance
                 u.targetUnitId = closest.id
                 u.targetX = closest.x
                 u.targetY = closest.y
@@ -369,36 +632,54 @@ class TacticalEngine {
     private fun attemptFire(u: TacticalUnit, target: TacticalUnit) {
         if (u.reloadTimer > 0f) return
 
-        // Check if turret is aligned with target
         val aimAngle = atan2(target.y - u.y, target.x - u.x)
         val diff = abs(normalizeAngle(aimAngle - u.turretAngleRad))
-        if (diff > 0.35f) return // Turret still traversing
+        if (diff > 0.35f) return
 
         u.reloadTimer = u.unitClass.reloadTimeSec
 
-        // Fire sound
         when (u.unitClass) {
             UnitClass.INFANTRY -> TacticalAudio.playRifleShot()
+            UnitClass.ROCKET_SOLDIER, UnitClass.ATTACK_HELICOPTER -> TacticalAudio.playCannonFire()
             UnitClass.ARTILLERY -> TacticalAudio.playArtilleryBoom()
             else -> TacticalAudio.playCannonFire()
         }
 
-        // Spawn pooled projectile
+        val startX = u.x + cos(u.turretAngleRad) * (u.unitClass.radius + 4f)
+        val startY = u.y + sin(u.turretAngleRad) * (u.unitClass.radius + 4f)
+
+        spawnMuzzleFlash(startX, startY, cos(u.turretAngleRad), sin(u.turretAngleRad))
+
+        val projSpeed = when (u.unitClass.projectileType) {
+            ProjectileType.BULLET -> 650f
+            ProjectileType.ROCKET -> 480f
+            ProjectileType.TANK_SHELL -> 600f
+        }
+
         spawnProjectile(
-            startX = u.x + cos(u.turretAngleRad) * (u.unitClass.radius + 4f),
-            startY = u.y + sin(u.turretAngleRad) * (u.unitClass.radius + 4f),
+            startX = startX,
+            startY = startY,
             targetX = target.x + (Random.nextFloat() - 0.5f) * 16f,
             targetY = target.y + (Random.nextFloat() - 0.5f) * 16f,
-            speed = if (u.unitClass == UnitClass.ARTILLERY) 380f else 540f,
+            speed = projSpeed,
             damage = u.unitClass.damage,
             armorPen = u.unitClass.armorPen,
             splash = u.unitClass.splashRadius,
             faction = u.faction,
+            projType = u.unitClass.projectileType,
+            dmgType = u.unitClass.damageType,
             isArtillery = u.unitClass == UnitClass.ARTILLERY
         )
     }
 
-    private fun spawnProjectile(startX: Float, startY: Float, targetX: Float, targetY: Float, speed: Float, damage: Float, armorPen: Float, splash: Float, faction: Faction, isArtillery: Boolean) {
+    private fun spawnProjectile(
+        startX: Float, startY: Float,
+        targetX: Float, targetY: Float,
+        speed: Float, damage: Float, armorPen: Float,
+        splash: Float, faction: Faction,
+        projType: ProjectileType, dmgType: DamageType,
+        isArtillery: Boolean
+    ) {
         val proj = projectilePool.firstOrNull { !it.active } ?: return
         val dx = targetX - startX
         val dy = targetY - startY
@@ -421,11 +702,31 @@ class TacticalEngine {
         proj.armorPen = armorPen
         proj.splashRadius = splash
         proj.faction = faction
+        proj.projectileType = projType
+        proj.damageType = dmgType
         proj.isArtillery = isArtillery
     }
 
-    private fun applyDamageToUnit(u: TacticalUnit, rawDamage: Float, armorPen: Float, vx: Float, vy: Float) {
-        // Calculate hit angle relative to unit hull
+    private fun applyDamageToUnit(u: TacticalUnit, rawDamage: Float, armorPen: Float, vx: Float, vy: Float, dmgType: DamageType) {
+        val typeMultiplier = when (u.unitClass.armorType) {
+            ArmorType.INFANTRY -> when (dmgType) {
+                DamageType.KINETIC -> 1.5f
+                DamageType.EXPLOSIVE -> 1.1f
+                DamageType.ARMOR_PIERCING -> 0.65f
+            }
+            ArmorType.VEHICLE -> when (dmgType) {
+                DamageType.KINETIC -> 0.25f
+                DamageType.EXPLOSIVE -> 1.35f
+                DamageType.ARMOR_PIERCING -> 1.5f
+            }
+            ArmorType.AIR -> when (dmgType) {
+                DamageType.EXPLOSIVE -> 1.6f
+                else -> 0.0f
+            }
+        }
+
+        if (typeMultiplier <= 0f) return
+
         val shotDirX = -vx
         val shotDirY = -vy
         val shotLen = hypot(shotDirX, shotDirY)
@@ -436,27 +737,33 @@ class TacticalEngine {
         val hullForwardY = sin(u.angleRad)
         val dot = normShotX * hullForwardX + normShotY * hullForwardY
 
-        val effectiveArmor = when {
-            dot < -0.5f -> u.unitClass.armorRear // Critical rear shot!
-            abs(dot) <= 0.5f -> u.unitClass.armorSide // Flank shot
-            else -> u.unitClass.armorFront // Head-on frontal armor
+        val effectiveArmor = if (u.unitClass.armorType == ArmorType.VEHICLE) {
+            when {
+                dot < -0.4f -> u.unitClass.armorRear
+                abs(dot) <= 0.4f -> u.unitClass.armorSide
+                else -> u.unitClass.armorFront
+            }
+        } else {
+            u.unitClass.armorFront
         }
 
         val armorDelta = effectiveArmor - armorPen
         val damageMultiplier = if (armorDelta > 0) {
             shotsDeflected++
-            (1f - (armorDelta / (effectiveArmor + 25f))).coerceIn(0.12f, 1f)
+            (1f - (armorDelta / (effectiveArmor + 22f))).coerceIn(0.15f, 1f)
         } else {
             1f + (abs(armorDelta) / 60f).coerceIn(0f, 0.6f)
         }
 
-        val finalDamage = max(rawDamage * damageMultiplier, 1f)
+        val finalDamage = max(rawDamage * typeMultiplier * damageMultiplier, 1f)
         u.hp -= finalDamage
+
+        spawnHitSpark(u.x, u.y, normShotX, normShotY)
 
         if (u.hp <= 0f) {
             u.isDestroyed = true
             u.state = UnitState.DESTROYED
-            spawnExplosion(u.x, u.y, u.unitClass.isHeavy)
+            spawnDeathWreckage(u.x, u.y, u.unitClass.isHeavy)
             if (u.faction == Faction.ALLIED) {
                 playerUnitsLost++
             } else {
@@ -465,16 +772,44 @@ class TacticalEngine {
         }
     }
 
-    private fun applySplashDamage(x: Float, y: Float, radius: Float, damage: Float, armorPen: Float, attackerFaction: Faction) {
+    private fun applySplashDamage(x: Float, y: Float, radius: Float, damage: Float, armorPen: Float, attackerFaction: Faction, dmgType: DamageType) {
         val rSq = radius * radius
         for (u in units) {
             if (u.isDestroyed || u.faction == attackerFaction) continue
+            if (u.unitClass.armorType == ArmorType.AIR && dmgType != DamageType.EXPLOSIVE) continue
+
             val distSq = (u.x - x) * (u.x - x) + (u.y - y) * (u.y - y)
             if (distSq <= rSq) {
-                val falloff = (1f - sqrt(distSq) / radius).coerceIn(0.2f, 1f)
-                applyDamageToUnit(u, damage * falloff, armorPen * falloff, 1f, 0f)
+                val falloff = (1f - sqrt(distSq) / radius).coerceIn(0.25f, 1f)
+                applyDamageToUnit(u, damage * falloff, armorPen * falloff, 1f, 0f, dmgType)
             }
         }
+    }
+
+    private fun spawnMuzzleFlash(x: Float, y: Float, dirX: Float, dirY: Float) {
+        val p = particlePool.firstOrNull { !it.active } ?: return
+        p.active = true
+        p.x = x
+        p.y = y
+        p.dirX = dirX
+        p.dirY = dirY
+        p.maxLife = 0.08f
+        p.life = p.maxLife
+        p.radius = 14f
+        p.kind = ParticleKind.MUZZLE_FLASH
+    }
+
+    private fun spawnHitSpark(x: Float, y: Float, normX: Float, normY: Float) {
+        val p = particlePool.firstOrNull { !it.active } ?: return
+        p.active = true
+        p.x = x
+        p.y = y
+        p.dirX = normX
+        p.dirY = normY
+        p.maxLife = 0.16f
+        p.life = p.maxLife
+        p.radius = 12f
+        p.kind = ParticleKind.HIT_SPARK
     }
 
     private fun spawnExplosion(x: Float, y: Float, isHeavy: Boolean) {
@@ -482,9 +817,22 @@ class TacticalEngine {
         p.active = true
         p.x = x
         p.y = y
-        p.maxLife = if (isHeavy) 0.55f else 0.35f
+        p.maxLife = if (isHeavy) 0.45f else 0.32f
         p.life = p.maxLife
-        p.radius = if (isHeavy) 32f else 18f
+        p.radius = if (isHeavy) 36f else 20f
+        p.kind = ParticleKind.EXPLOSION
+        p.isHeavy = isHeavy
+    }
+
+    private fun spawnDeathWreckage(x: Float, y: Float, isHeavy: Boolean) {
+        val p = particlePool.firstOrNull { !it.active } ?: return
+        p.active = true
+        p.x = x
+        p.y = y
+        p.maxLife = 0.85f
+        p.life = p.maxLife
+        p.radius = if (isHeavy) 45f else 28f
+        p.kind = ParticleKind.DEATH_WRECKAGE
         p.isHeavy = isHeavy
     }
 
@@ -525,6 +873,9 @@ class TacticalEngine {
         for (u in units) {
             u.isSelected = false
         }
+        for (b in buildings) {
+            b.isSelected = false
+        }
     }
 
     fun selectAllAllied() {
@@ -542,15 +893,15 @@ class TacticalEngine {
         TacticalAudio.playOrderBeep()
 
         if (targetUnit != null && targetUnit.faction == Faction.AXIS) {
-            // Focus fire order
             for (u in selected) {
-                u.targetUnitId = targetUnit.id
-                u.state = UnitState.ATTACK_TARGET
+                if (canUnitTarget(u, targetUnit)) {
+                    u.targetUnitId = targetUnit.id
+                    u.state = UnitState.ATTACK_TARGET
+                }
             }
             return
         }
 
-        // Formation offset calculations
         val count = selected.size
         val cols = ceil(sqrt(count.toDouble())).toInt()
         val spacing = 38f

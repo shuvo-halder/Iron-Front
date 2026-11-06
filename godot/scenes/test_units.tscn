@@ -8,7 +8,7 @@ script = ExtResource("1_test")
 
 [node name="TacticalCamera" type="Camera2D" parent="."]
 position = Vector2(0, 0)
-zoom = Vector2(0.9, 0.9)
+zoom = Vector2(0.85, 0.85)
 script = ExtResource("2_camera")
 
 [node name="LabelsContainer" type="Node2D" parent="."]
@@ -22,36 +22,48 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
+offset_left = 16.0
 offset_top = -64.0
-offset_right = -24.0
+offset_right = -16.0
 offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 alignment = 1
 
 [node name="AdvanceBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
-custom_minimum_size = Vector2(160, 48)
+custom_minimum_size = Vector2(140, 48)
 layout_mode = 2
 text = "Allies Advance"
 
 [node name="AttackBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
-custom_minimum_size = Vector2(160, 48)
+custom_minimum_size = Vector2(140, 48)
 layout_mode = 2
 text = "Axis Attack"
 
-[node name="DamageBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
+[node name="AutoTargetBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
+custom_minimum_size = Vector2(150, 48)
+layout_mode = 2
+text = "Auto-Target Test"
+
+[node name="HeliTestBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
 custom_minimum_size = Vector2(160, 48)
 layout_mode = 2
-text = "Apply 25 Damage"
+text = "Heli vs AA Test"
+
+[node name="DamageBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
+custom_minimum_size = Vector2(130, 48)
+layout_mode = 2
+text = "Apply Damage"
 
 [node name="ResetBtn" type="Button" parent="CanvasLayer/HBoxContainer"]
-custom_minimum_size = Vector2(160, 48)
+custom_minimum_size = Vector2(130, 48)
 layout_mode = 2
-text = "Reset Showcase"
+text = "Reset"
 
 [connection signal="pressed" from="CanvasLayer/HBoxContainer/AdvanceBtn" to="." method="_on_order_allies_advance_pressed"]
 [connection signal="pressed" from="CanvasLayer/HBoxContainer/AttackBtn" to="." method="_on_order_axis_attack_pressed"]
+[connection signal="pressed" from="CanvasLayer/HBoxContainer/AutoTargetBtn" to="." method="_on_test_auto_target_pressed"]
+[connection signal="pressed" from="CanvasLayer/HBoxContainer/HeliTestBtn" to="." method="_on_test_helicopter_anti_air_pressed"]
 [connection signal="pressed" from="CanvasLayer/HBoxContainer/DamageBtn" to="." method="_on_test_damage_pressed"]
 [connection signal="pressed" from="CanvasLayer/HBoxContainer/ResetBtn" to="." method="_on_reset_showcase_pressed"]

@@ -12,8 +12,12 @@ signal order_issued(order_type: int, target_position: Vector2, target_unit: Char
 
 # Economy & Construction
 signal supply_changed(current_supply: float, rate_per_sec: float)
-signal building_placement_requested(building_id: String)
+signal building_placement_requested(building_res_path: String)
 signal building_constructed(building: Node2D)
+signal building_destroyed(building: Node2D)
+signal building_selected(building: Node2D)
+signal production_queue_updated(building: Node2D, queue_items: Array, current_progress: float)
+signal supply_crate_collected(amount: float, world_pos: Vector2)
 signal node_captured(node: Node2D, faction: int)
 
 # Combat & Lifecycle

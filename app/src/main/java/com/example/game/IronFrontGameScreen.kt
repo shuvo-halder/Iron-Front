@@ -47,6 +47,8 @@ fun IronFrontGameScreen() {
     var currentOrderMode by remember { mutableStateOf(OrderMode.MOVE) }
     var showScenarioDialog by remember { mutableStateOf(false) }
     var showBriefingDialog by remember { mutableStateOf(false) }
+    var showBuildCatalogDialog by remember { mutableStateOf(false) }
+    var isSettingRallyPoint by remember { mutableStateOf(false) }
 
     var tickCounter by remember { mutableLongStateOf(0L) }
     var fps by remember { mutableIntStateOf(60) }
@@ -80,6 +82,7 @@ fun IronFrontGameScreen() {
     val activeAllies = remember(tickCounter) { engine.units.count { it.faction == Faction.ALLIED && !it.isDestroyed } }
     val activeAxis = remember(tickCounter) { engine.units.count { it.faction == Faction.AXIS && !it.isDestroyed } }
     val selectedUnits = remember(tickCounter) { engine.units.filter { it.isSelected && !it.isDestroyed } }
+    val selectedBuilding = remember(tickCounter) { engine.buildings.firstOrNull { it.isSelected && !it.isDestroyed } }
 
     Box(
         modifier = Modifier
@@ -97,7 +100,39 @@ fun IronFrontGameScreen() {
                             val worldX = tapOffset.x + camX
                             val worldY = tapOffset.y + camY
 
-                            // Check if tapped a unit
+                            // 1. If currently in Building Placement Mode
+                            if (engine.pendingBuildingToPlace != null) {
+                                engine.updateGhostPosition(worldX, worldY)
+                                engine.confirmBuildingPlacement()
+                                return@detectTapGestures
+                            }
+
+                            // 2. If setting rally point for building
+                            if (isSettingRallyPoint && selectedBuilding != null) {
+                                selectedBuilding.rallyX = worldX
+                                selectedBuilding.rallyY = worldY
+                                isSettingRallyPoint = false
+                                TacticalAudio.playOrderBeep()
+                                return@detectTapGestures
+                            }
+
+                            // 3. Check if tapped a Building
+                            val tappedBuilding = engine.selectSingleBuildingAt(worldX, worldY)
+                            if (tappedBuilding != null) {
+                                if (tappedBuilding.faction == Faction.ALLIED) {
+                                    engine.clearSelection()
+                                    tappedBuilding.isSelected = true
+                                    TacticalAudio.playOrderBeep()
+                                    return@detectTapGestures
+                                } else {
+                                    if (selectedUnits.isNotEmpty()) {
+                                        engine.issueOrderToSelected(worldX, worldY, OrderMode.ATTACK_MOVE)
+                                        return@detectTapGestures
+                                    }
+                                }
+                            }
+
+                            // 4. Check if tapped a unit
                             val tappedUnit = engine.selectSingleUnitAt(worldX, worldY)
                             if (tappedUnit != null) {
                                 if (tappedUnit.faction == Faction.ALLIED) {
@@ -180,6 +215,25 @@ fun IronFrontGameScreen() {
             // Draw Ground Terrain & Grid
             drawTacticalTerrain(engine.mapWidth, engine.mapHeight, camX, camY)
 
+            // Draw Supply Crates
+            for (crate in engine.supplyCrates) {
+                if (!crate.collected) {
+                    drawTacticalSupplyCrate(crate, camX, camY)
+                }
+            }
+
+            // Draw Buildings
+            for (b in engine.buildings) {
+                if (!b.isDestroyed) {
+                    drawTacticalBuilding(b, camX, camY)
+                }
+            }
+
+            // Draw Placement Ghost
+            if (engine.pendingBuildingToPlace != null) {
+                drawBuildingGhost(engine.ghostX, engine.ghostY, engine.pendingBuildingToPlace!!.radius, engine.isGhostPlacementValid, camX, camY)
+            }
+
             // Draw Units
             for (u in engine.units) {
                 if (u.isDestroyed) {
@@ -254,8 +308,9 @@ fun IronFrontGameScreen() {
                         fontSize = 14.sp
                     )
                     Text(
-                        text = engine.currentScenario.title,
-                        color = Color(0xFFECEFF1),
+                        text = "Supply: ${engine.currentSupply.toInt()} S (+${engine.passiveIncomeRate.toInt()}/s)",
+                        color = Color(0xFFFFD54F),
+                        fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     )
                     // Allies count
@@ -538,6 +593,16 @@ fun IronFrontGameScreen() {
                         engine.selectAllAllied()
                         TacticalAudio.playOrderBeep()
                     }
+
+                    // Build Structure Button
+                    CommandButton(
+                        label = "BUILD (+)",
+                        icon = Icons.Default.AddBusiness,
+                        isActive = showBuildCatalogDialog || engine.pendingBuildingToPlace != null,
+                        testTag = "cmd_build_button"
+                    ) {
+                        showBuildCatalogDialog = true
+                    }
                 }
             }
         }
@@ -652,6 +717,160 @@ fun IronFrontGameScreen() {
                 },
                 containerColor = Color(0xFF1E282D)
             )
+        }
+
+        // Build Catalog Dialog
+        if (showBuildCatalogDialog) {
+            AlertDialog(
+                onDismissRequest = { showBuildCatalogDialog = false },
+                title = { Text("CONSTRUCTION BLUEPRINTS", fontWeight = FontWeight.Bold, color = Color(0xFFFFB300)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Select structure to position on battlefield:", fontSize = 12.sp, color = Color(0xFFB0BEC5))
+                        val structures = listOf(BuildingClass.HQ, BuildingClass.BARRACKS, BuildingClass.FACTORY, BuildingClass.TURRET)
+                        structures.forEach { bClass ->
+                            val canAfford = engine.currentSupply >= bClass.cost
+                            Surface(
+                                onClick = {
+                                    if (canAfford) {
+                                        engine.startBuildingPlacement(bClass)
+                                        showBuildCatalogDialog = false
+                                    }
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (canAfford) Color(0xFF263238) else Color(0xFF1B2228),
+                                border = if (canAfford) BorderStroke(1.dp, Color(0xFF455A64)) else BorderStroke(1.dp, Color(0xFF37474F)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(bClass.displayName, fontWeight = FontWeight.Bold, color = if (canAfford) Color.White else Color.Gray, fontSize = 13.sp)
+                                        val desc = when (bClass) {
+                                            BuildingClass.HQ -> "+10 Supply/sec passive, Engineer training"
+                                            BuildingClass.BARRACKS -> "Rifle Squads & Rocket Soldiers"
+                                            BuildingClass.FACTORY -> "Scout Cars, Medium Tanks, Heavy Tanks"
+                                            BuildingClass.TURRET -> "Automated anti-air & anti-armor missiles"
+                                        }
+                                        Text(desc, fontSize = 11.sp, color = Color(0xFF90A4AE))
+                                    }
+                                    Text(
+                                        "${bClass.cost} S",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (canAfford) Color(0xFFFFD54F) else Color(0xFFE57373),
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showBuildCatalogDialog = false }) {
+                        Text("CANCEL", color = Color(0xFFFFB300))
+                    }
+                },
+                containerColor = Color(0xFF1E282D)
+            )
+        }
+
+        // Building Production Card (Shown when an Allied building is selected)
+        if (selectedBuilding != null && selectedBuilding.faction == Faction.ALLIED) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 84.dp)
+                    .widthIn(max = 550.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xF21A2228),
+                border = BorderStroke(1.dp, Color(0xFF455A64))
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${selectedBuilding.buildingClass.displayName} (HP: ${selectedBuilding.hp.toInt()}/${selectedBuilding.buildingClass.maxHp.toInt()})",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF81C784),
+                            fontSize = 13.sp
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilledTonalButton(
+                                onClick = { isSettingRallyPoint = true },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (isSettingRallyPoint) Color(0xFFFFB300) else Color(0xFF37474F),
+                                    contentColor = if (isSettingRallyPoint) Color.Black else Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(if (isSettingRallyPoint) "TAP MAP FOR RALLY" else "RALLY POINT", fontSize = 10.sp)
+                            }
+                            IconButton(
+                                onClick = { engine.clearSelection() },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                            }
+                        }
+                    }
+
+                    // Queue status & progress
+                    if (selectedBuilding.isUnderConstruction) {
+                        Text("Under Construction (${selectedBuilding.buildTimer.toInt()}s remaining)", color = Color(0xFFFFB300), fontSize = 11.sp)
+                    } else if (selectedBuilding.queue.isNotEmpty()) {
+                        val prog = (1f - selectedBuilding.productionTimer / selectedBuilding.productionTotalTime).coerceIn(0f, 1f)
+                        Text("Producing ${selectedBuilding.queue[0].displayName}... (${selectedBuilding.queue.size}/5 queued)", color = Color(0xFF80D8FF), fontSize = 11.sp)
+                        LinearProgressIndicator(
+                            progress = { prog },
+                            modifier = Modifier.fillMaxWidth().height(4.dp),
+                            color = Color(0xFF00E5FF),
+                            trackColor = Color(0xFF263238)
+                        )
+                    } else {
+                        Text("Production Queue: Idle (0/5)", color = Color(0xFFB0BEC5), fontSize = 11.sp)
+                    }
+
+                    // Unit Recruitment Buttons
+                    if (!selectedBuilding.isUnderConstruction && selectedBuilding.buildingClass.producibleUnits.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            selectedBuilding.buildingClass.producibleUnits.forEach { uClass ->
+                                val cost = (uClass.damage * 4f + uClass.maxHp * 0.5f).toInt()
+                                val canAfford = engine.currentSupply >= cost && selectedBuilding.queue.size < 5
+                                Button(
+                                    onClick = { engine.enqueueUnitProduction(selectedBuilding, uClass) },
+                                    enabled = canAfford,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF263238),
+                                        contentColor = Color.White,
+                                        disabledContainerColor = Color(0xFF192024),
+                                        disabledContentColor = Color.Gray
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(uClass.displayName, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                        Text("$cost S", fontSize = 10.sp, color = if (canAfford) Color(0xFFFFD54F) else Color.Gray)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -808,11 +1027,49 @@ private fun DrawScope.drawTacticalUnit(u: TacticalUnit, camX: Float, camY: Float
 
     rotate(degrees = Math.toDegrees(u.angleRad.toDouble()).toFloat(), pivot = Offset(screenX, screenY)) {
         when (u.unitClass) {
+            UnitClass.COMBAT_ENGINEER -> {
+                // Diamond engineering squad
+                drawCircle(color = factionColor, radius = r * 0.5f, center = Offset(screenX, screenY))
+                drawCircle(color = Color(0xFFFFD54F), radius = r * 0.25f, center = Offset(screenX, screenY))
+            }
             UnitClass.INFANTRY -> {
                 // Infantry squad (3 small soldiers)
                 drawCircle(color = factionColor, radius = r * 0.45f, center = Offset(screenX + 5f, screenY))
                 drawCircle(color = factionColor, radius = r * 0.45f, center = Offset(screenX - 4f, screenY - 4f))
                 drawCircle(color = factionColor, radius = r * 0.45f, center = Offset(screenX - 4f, screenY + 4f))
+            }
+            UnitClass.ROCKET_SOLDIER -> {
+                // Heavy soldier with prominent rocket launcher tube
+                drawCircle(color = factionColor, radius = r * 0.6f, center = Offset(screenX, screenY))
+                drawLine(
+                    color = Color(0xFF1B2228),
+                    start = Offset(screenX - 4f, screenY),
+                    end = Offset(screenX + r * 1.5f, screenY),
+                    strokeWidth = 4f
+                )
+                drawCircle(color = Color(0xFFE53935), radius = 2.5f, center = Offset(screenX + r * 1.5f, screenY))
+            }
+            UnitClass.ATTACK_HELICOPTER -> {
+                // Helicopter airframe
+                drawRoundRect(
+                    color = darkHullColor,
+                    topLeft = Offset(screenX - r * 0.9f, screenY - r * 0.45f),
+                    size = Size(r * 1.8f, r * 0.9f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
+                )
+                // Canopy
+                drawCircle(color = Color(0xFF80D8FF), radius = r * 0.35f, center = Offset(screenX + r * 0.5f, screenY))
+                // Rocket pods
+                drawRect(color = Color(0xFF263238), topLeft = Offset(screenX - 2f, screenY - r * 0.8f), size = Size(r * 0.7f, 4f))
+                drawRect(color = Color(0xFF263238), topLeft = Offset(screenX - 2f, screenY + r * 0.7f), size = Size(r * 0.7f, 4f))
+                // Tail boom
+                drawLine(color = darkHullColor, start = Offset(screenX - r * 0.9f, screenY), end = Offset(screenX - r * 1.7f, screenY), strokeWidth = 3f)
+                // Spinning rotor blades
+                val rotorTime = (System.currentTimeMillis() % 1000) / 1000f * 6.28f
+                val rx1 = cos(rotorTime) * r * 1.6f
+                val ry1 = sin(rotorTime) * r * 1.6f
+                drawLine(color = Color(0xCCFFFFFF), start = Offset(screenX - rx1, screenY - ry1), end = Offset(screenX + rx1, screenY + ry1), strokeWidth = 2.5f)
+                drawLine(color = Color(0xCCFFFFFF), start = Offset(screenX - ry1, screenY + rx1), end = Offset(screenX + ry1, screenY - rx1), strokeWidth = 2.5f)
             }
             UnitClass.SCOUT_CAR -> {
                 // Wheeled armored recon
@@ -851,6 +1108,11 @@ private fun DrawScope.drawTacticalUnit(u: TacticalUnit, camX: Float, camY: Float
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f)
                 )
             }
+            UnitClass.DEFENSE_TURRET -> {
+                // Fortified bunker base
+                drawCircle(color = Color(0xFF37474F), radius = r * 1.1f, center = Offset(screenX, screenY))
+                drawCircle(color = darkHullColor, radius = r * 0.85f, center = Offset(screenX, screenY))
+            }
             UnitClass.ARTILLERY -> {
                 // Artillery Gun Carriage
                 drawRect(
@@ -863,7 +1125,7 @@ private fun DrawScope.drawTacticalUnit(u: TacticalUnit, camX: Float, camY: Float
     }
 
     // Independent Turret & Gun Barrel
-    if (u.unitClass != UnitClass.INFANTRY) {
+    if (u.unitClass != UnitClass.INFANTRY && u.unitClass != UnitClass.COMBAT_ENGINEER && u.unitClass != UnitClass.ATTACK_HELICOPTER && u.unitClass != UnitClass.ROCKET_SOLDIER) {
         rotate(degrees = Math.toDegrees(u.turretAngleRad.toDouble()).toFloat(), pivot = Offset(screenX, screenY)) {
             // Gun Barrel
             val barrelLen = if (u.unitClass == UnitClass.ARTILLERY) r * 2.2f else r * 1.6f
@@ -929,42 +1191,240 @@ private fun DrawScope.drawTacticalProjectile(p: TacticalProjectile, camX: Float,
     val sx = p.x - camX
     val sy = p.y - camY
 
-    val projColor = if (p.isArtillery) Color(0xFFFFAB00) else Color(0xFFFFD54F)
-    drawCircle(
-        color = projColor,
-        radius = if (p.isArtillery) 4.5f else 2.5f,
-        center = Offset(sx, sy)
-    )
+    val hyp = hypot(p.vx, p.vy)
+    val vxNorm = if (hyp > 0f) p.vx / hyp else 1f
+    val vyNorm = if (hyp > 0f) p.vy / hyp else 0f
 
-    // Tail tracer
-    val tailLen = 14f
-    val vxNorm = p.vx / hypot(p.vx, p.vy)
-    val vyNorm = p.vy / hypot(p.vx, p.vy)
-    drawLine(
-        color = Color(0x88FFAB00),
-        start = Offset(sx, sy),
-        end = Offset(sx - vxNorm * tailLen, sy - vyNorm * tailLen),
-        strokeWidth = 2f
-    )
+    when (p.projectileType) {
+        ProjectileType.BULLET -> {
+            drawLine(
+                color = Color(0xFFFFEB3B),
+                start = Offset(sx, sy),
+                end = Offset(sx - vxNorm * 10f, sy - vyNorm * 10f),
+                strokeWidth = 2f
+            )
+            drawCircle(color = Color.White, radius = 1.5f, center = Offset(sx, sy))
+        }
+        ProjectileType.ROCKET -> {
+            // Rocket body
+            drawLine(
+                color = Color(0xFFFF5722),
+                start = Offset(sx, sy),
+                end = Offset(sx - vxNorm * 14f, sy - vyNorm * 14f),
+                strokeWidth = 3.5f
+            )
+            // Smoke / exhaust plume
+            drawCircle(color = Color(0xFFFFAB00), radius = 3.5f, center = Offset(sx - vxNorm * 14f, sy - vyNorm * 14f))
+            drawCircle(color = Color(0x889E9E9E), radius = 5f, center = Offset(sx - vxNorm * 22f, sy - vyNorm * 22f))
+        }
+        ProjectileType.TANK_SHELL -> {
+            val tailLen = if (p.isArtillery) 22f else 15f
+            drawLine(
+                color = Color(0xFFFF9800),
+                start = Offset(sx, sy),
+                end = Offset(sx - vxNorm * tailLen, sy - vyNorm * tailLen),
+                strokeWidth = if (p.isArtillery) 4.5f else 3f
+            )
+            drawCircle(color = Color.White, radius = 2.5f, center = Offset(sx, sy))
+        }
+    }
 }
 
 private fun DrawScope.drawCombatParticle(p: CombatParticle, camX: Float, camY: Float) {
     val sx = p.x - camX
     val sy = p.y - camY
     val progress = (1f - p.life / p.maxLife).coerceIn(0f, 1f)
-    val currentRadius = p.radius * (0.4f + progress * 0.8f)
     val alpha = (1f - progress).coerceIn(0f, 1f)
 
-    // Shockwave
-    drawCircle(
-        color = Color(1f, 0.4f, 0.1f, alpha * 0.7f),
-        radius = currentRadius,
-        center = Offset(sx, sy)
-    )
-    // Core fire flash
-    drawCircle(
-        color = Color(1f, 0.95f, 0.4f, alpha),
-        radius = currentRadius * 0.45f,
-        center = Offset(sx, sy)
-    )
+    when (p.kind) {
+        ParticleKind.MUZZLE_FLASH -> {
+            val flashLen = p.radius * 1.5f * (1f - progress)
+            drawLine(
+                color = Color(1f, 0.95f, 0.5f, alpha),
+                start = Offset(sx, sy),
+                end = Offset(sx + p.dirX * flashLen, sy + p.dirY * flashLen),
+                strokeWidth = 4f
+            )
+            drawCircle(color = Color.White, radius = 3.5f * alpha, center = Offset(sx, sy))
+        }
+        ParticleKind.HIT_SPARK -> {
+            val sparkDist = p.radius * progress
+            drawLine(
+                color = Color(1f, 0.85f, 0.3f, alpha),
+                start = Offset(sx, sy),
+                end = Offset(sx + p.dirX * sparkDist, sy + p.dirY * sparkDist),
+                strokeWidth = 2f
+            )
+            drawCircle(color = Color.White, radius = 2f * alpha, center = Offset(sx + p.dirX * sparkDist, sy + p.dirY * sparkDist))
+        }
+        ParticleKind.EXPLOSION -> {
+            val currentRadius = p.radius * (0.4f + progress * 0.8f)
+            // Shockwave ring
+            drawCircle(
+                color = Color(1f, 0.4f, 0.1f, alpha * 0.7f),
+                radius = currentRadius,
+                center = Offset(sx, sy),
+                style = Stroke(width = 3f)
+            )
+            // Core fire flash
+            drawCircle(
+                color = Color(1f, 0.95f, 0.4f, alpha),
+                radius = currentRadius * 0.45f,
+                center = Offset(sx, sy)
+            )
+        }
+        ParticleKind.DEATH_WRECKAGE -> {
+            val scorchRadius = p.radius * 0.8f
+            drawCircle(
+                color = Color(0.12f, 0.12f, 0.12f, alpha * 0.6f),
+                radius = scorchRadius,
+                center = Offset(sx, sy)
+            )
+            val currentRadius = p.radius * (0.3f + progress * 0.9f)
+            drawCircle(
+                color = Color(1f, 0.5f, 0.1f, alpha * 0.8f),
+                radius = currentRadius,
+                center = Offset(sx, sy),
+                style = Stroke(width = 4f)
+            )
+        }
+    }
 }
+
+private fun DrawScope.drawTacticalSupplyCrate(crate: TacticalSupplyCrate, camX: Float, camY: Float) {
+    val sx = crate.x - camX
+    val sy = crate.y - camY
+    val w = 24f
+    val h = 20f
+
+    // Crate body
+    drawRect(
+        color = Color(0xFF8D6E63),
+        topLeft = Offset(sx - w * 0.5f, sy - h * 0.5f),
+        size = Size(w, h)
+    )
+    drawRect(
+        color = Color(0xFF3E2723),
+        topLeft = Offset(sx - w * 0.5f, sy - h * 0.5f),
+        size = Size(w, h),
+        style = Stroke(width = 1.5f)
+    )
+    // Golden supply stencil star
+    drawCircle(color = Color(0xFFFFD54F), radius = 4f, center = Offset(sx, sy))
+}
+
+private fun DrawScope.drawTacticalBuilding(b: TacticalBuilding, camX: Float, camY: Float) {
+    val sx = b.x - camX
+    val sy = b.y - camY
+    val r = b.buildingClass.radius
+
+    val factionColor = if (b.faction == Faction.ALLIED) Color(0xFF2E7D32) else Color(0xFFC62828)
+    val accentColor = if (b.faction == Faction.ALLIED) Color(0xFF81C784) else Color(0xFFE57373)
+
+    // Selection ring & Rally line
+    if (b.isSelected) {
+        drawCircle(
+            color = Color(0xFF69F0AE),
+            radius = r + 8f,
+            center = Offset(sx, sy),
+            style = Stroke(width = 2.5f)
+        )
+        if (b.rallyX != 0f) {
+            val rx = b.rallyX - camX
+            val ry = b.rallyY - camY
+            drawLine(
+                color = Color(0x9969F0AE),
+                start = Offset(sx, sy),
+                end = Offset(rx, ry),
+                strokeWidth = 2f
+            )
+            drawCircle(color = Color(0xFF69F0AE), radius = 5f, center = Offset(rx, ry))
+        }
+    }
+
+    // Base building shape
+    drawCircle(color = factionColor, radius = r, center = Offset(sx, sy))
+    drawCircle(color = Color(0xFF1B2228), radius = r, center = Offset(sx, sy), style = Stroke(width = 3f))
+
+    when (b.buildingClass) {
+        BuildingClass.HQ -> {
+            // Fortified bunker + radar dish
+            drawRect(
+                color = Color(0xFF37474F),
+                topLeft = Offset(sx - r * 0.55f, sy - r * 0.55f),
+                size = Size(r * 1.1f, r * 1.1f)
+            )
+            drawCircle(color = Color.White, radius = r * 0.35f, center = Offset(sx, sy))
+            drawCircle(color = accentColor, radius = r * 0.2f, center = Offset(sx, sy))
+        }
+        BuildingClass.BARRACKS -> {
+            // Quonset hut with roof lines
+            drawRoundRect(
+                color = Color(0xFF334E35),
+                topLeft = Offset(sx - r * 0.65f, sy - r * 0.45f),
+                size = Size(r * 1.3f, r * 0.9f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
+            )
+            drawLine(
+                color = Color.White,
+                start = Offset(sx - r * 0.65f, sy),
+                end = Offset(sx + r * 0.65f, sy),
+                strokeWidth = 2f
+            )
+        }
+        BuildingClass.FACTORY -> {
+            // Industrial factory with smokestacks
+            drawRect(
+                color = Color(0xFF37474F),
+                topLeft = Offset(sx - r * 0.7f, sy - r * 0.5f),
+                size = Size(r * 1.4f, r * 1.0f)
+            )
+            drawCircle(color = Color(0xFF212121), radius = r * 0.2f, center = Offset(sx - r * 0.35f, sy - r * 0.25f))
+            drawCircle(color = Color(0xFF212121), radius = r * 0.2f, center = Offset(sx + r * 0.35f, sy - r * 0.25f))
+        }
+        BuildingClass.TURRET -> {
+            // Pillbox turret with rotating cannon
+            drawCircle(color = Color(0xFF263238), radius = r * 0.75f, center = Offset(sx, sy))
+            val dirX = cos(b.turretAngleRad)
+            val dirY = sin(b.turretAngleRad)
+            drawLine(
+                color = Color(0xFFFFB300),
+                start = Offset(sx, sy),
+                end = Offset(sx + dirX * r * 1.2f, sy + dirY * r * 1.2f),
+                strokeWidth = 4f
+            )
+        }
+    }
+
+    // Health / Construction Bar
+    val barW = r * 2.2f
+    val barH = 4f
+    val barY = sy - r - 10f
+
+    if (b.isUnderConstruction) {
+        val prog = 1f - (b.buildTimer / b.buildingClass.buildTimeSec).coerceIn(0f, 1f)
+        drawRect(color = Color(0xCC000000), topLeft = Offset(sx - barW / 2f, barY), size = Size(barW, barH))
+        drawRect(color = Color(0xFFFFB300), topLeft = Offset(sx - barW / 2f, barY), size = Size(barW * prog, barH))
+    } else {
+        val hpRatio = (b.hp / b.buildingClass.maxHp).coerceIn(0f, 1f)
+        drawRect(color = Color(0xCC000000), topLeft = Offset(sx - barW / 2f, barY), size = Size(barW, barH))
+        drawRect(
+            color = if (hpRatio > 0.5f) Color(0xFF4CAF50) else Color(0xFFE53935),
+            topLeft = Offset(sx - barW / 2f, barY),
+            size = Size(barW * hpRatio, barH)
+        )
+    }
+}
+
+private fun DrawScope.drawBuildingGhost(x: Float, y: Float, radius: Float, isValid: Boolean, camX: Float, camY: Float) {
+    val sx = x - camX
+    val sy = y - camY
+    val tint = if (isValid) Color(0x774CAF50) else Color(0x77E53935)
+    val strokeColor = if (isValid) Color(0xFF4CAF50) else Color(0xFFE53935)
+
+    drawCircle(color = tint, radius = radius, center = Offset(sx, sy))
+    drawCircle(color = strokeColor, radius = radius, center = Offset(sx, sy), style = Stroke(width = 2.5f))
+    drawLine(color = strokeColor, start = Offset(sx - radius * 1.3f, sy), end = Offset(sx + radius * 1.3f, sy), strokeWidth = 1.5f)
+    drawLine(color = strokeColor, start = Offset(sx, sy - radius * 1.3f), end = Offset(sx, sy + radius * 1.3f), strokeWidth = 1.5f)
+}
+

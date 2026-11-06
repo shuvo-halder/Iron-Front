@@ -1,0 +1,257 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle_hud.gd" id="1_script"]
+
+[node name="BattleHUD" type="CanvasLayer"]
+script = ExtResource("1_script")
+
+[node name="TopBar" type="PanelContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 54.0
+grow_horizontal = 2
+
+[node name="Margin" type="MarginContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
+
+[node name="HBox" type="HBoxContainer" parent="TopBar/Margin"]
+layout_mode = 2
+alignment = 1
+
+[node name="SupplyLabel" type="Label" parent="TopBar/Margin/HBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "Supply: 400 S (+16/s)"
+
+[node name="UnitCountLabel" type="Label" parent="TopBar/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.7, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "Allied Forces: Active"
+horizontal_alignment = 1
+
+[node name="FPSLabel" type="Label" parent="TopBar/Margin/HBox"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.7, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "60 FPS"
+horizontal_alignment = 2
+
+[node name="UnitCard" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -140.0
+offset_right = 260.0
+offset_bottom = -16.0
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="UnitCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="UnitCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="UnitName" type="Label" parent="UnitCard/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "M4 Medium Tank"
+
+[node name="HealthBar" type="ProgressBar" parent="UnitCard/Margin/VBox"]
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="ArmorStats" type="Label" parent="UnitCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "ARMOR: F:55 / S:32 / R:18"
+
+[node name="CommandDeck" type="HBoxContainer" parent="."]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 280.0
+offset_top = -68.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="MoveBtn" type="Button" parent="CommandDeck"]
+custom_minimum_size = Vector2(100, 48)
+layout_mode = 2
+text = "MOVE"
+
+[node name="AttackMoveBtn" type="Button" parent="CommandDeck"]
+custom_minimum_size = Vector2(100, 48)
+layout_mode = 2
+text = "A-MOVE"
+
+[node name="StopBtn" type="Button" parent="CommandDeck"]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "STOP"
+
+[node name="BuildMenuBtn" type="Button" parent="CommandDeck"]
+custom_minimum_size = Vector2(140, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+text = "BUILD (+)"
+
+[node name="BuildCatalog" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -140.0
+offset_right = 260.0
+offset_bottom = 140.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="BuildCatalog"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="BuildCatalog/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="BuildCatalog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "CONSTRUCTION BLUEPRINTS"
+horizontal_alignment = 1
+
+[node name="Grid" type="GridContainer" parent="BuildCatalog/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="HQBtn" type="Button" parent="BuildCatalog/Margin/VBox/Grid"]
+custom_minimum_size = Vector2(230, 52)
+layout_mode = 2
+text = "Headquarters (450 S)"
+
+[node name="BarracksBtn" type="Button" parent="BuildCatalog/Margin/VBox/Grid"]
+custom_minimum_size = Vector2(230, 52)
+layout_mode = 2
+text = "Barracks (150 S)"
+
+[node name="FactoryBtn" type="Button" parent="BuildCatalog/Margin/VBox/Grid"]
+custom_minimum_size = Vector2(230, 52)
+layout_mode = 2
+text = "Armor Factory (280 S)"
+
+[node name="TurretBtn" type="Button" parent="BuildCatalog/Margin/VBox/Grid"]
+custom_minimum_size = Vector2(230, 52)
+layout_mode = 2
+text = "Defense Turret (120 S)"
+
+[node name="CloseCatalogBtn" type="Button" parent="BuildCatalog/Margin/VBox"]
+custom_minimum_size = Vector2(120, 38)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "CANCEL"
+
+[node name="BuildingProductionCard" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -280.0
+offset_top = -180.0
+offset_right = 280.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="BuildingProductionCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="BuildingProductionCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BuildingTitle" type="Label" parent="BuildingProductionCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.9, 0.5, 1)
+theme_override_font_sizes/font_size = 15
+text = "Infantry Barracks (HP: 650/650)"
+
+[node name="QueueStatusLabel" type="Label" parent="BuildingProductionCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "Queue: Idle (0/5)"
+
+[node name="ProgressBar" type="ProgressBar" parent="BuildingProductionCard/Margin/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+value = 0.0
+show_percentage = false
+
+[node name="ProductionButtonsHBox" type="HBoxContainer" parent="BuildingProductionCard/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HBoxBottom" type="HBoxContainer" parent="BuildingProductionCard/Margin/VBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="RallyPointBtn" type="Button" parent="BuildingProductionCard/Margin/VBox/HBoxBottom"]
+custom_minimum_size = Vector2(130, 32)
+layout_mode = 2
+text = "RALLY POINT"
+
+[node name="DeselectBuildingBtn" type="Button" parent="BuildingProductionCard/Margin/VBox/HBoxBottom"]
+custom_minimum_size = Vector2(90, 32)
+layout_mode = 2
+text = "CLOSE"
+
+[connection signal="pressed" from="CommandDeck/MoveBtn" to="." method="_on_move_btn_pressed"]
+[connection signal="pressed" from="CommandDeck/AttackMoveBtn" to="." method="_on_attack_move_btn_pressed"]
+[connection signal="pressed" from="CommandDeck/StopBtn" to="." method="_on_stop_btn_pressed"]
+[connection signal="pressed" from="CommandDeck/BuildMenuBtn" to="." method="_on_build_menu_btn_pressed"]
+[connection signal="pressed" from="BuildCatalog/Margin/VBox/Grid/HQBtn" to="." method="_on_build_hq_pressed"]
+[connection signal="pressed" from="BuildCatalog/Margin/VBox/Grid/BarracksBtn" to="." method="_on_build_barracks_pressed"]
+[connection signal="pressed" from="BuildCatalog/Margin/VBox/Grid/FactoryBtn" to="." method="_on_build_factory_pressed"]
+[connection signal="pressed" from="BuildCatalog/Margin/VBox/Grid/TurretBtn" to="." method="_on_build_turret_pressed"]
+[connection signal="pressed" from="BuildCatalog/Margin/VBox/CloseCatalogBtn" to="." method="_on_close_catalog_pressed"]
+[connection signal="pressed" from="BuildingProductionCard/Margin/VBox/HBoxBottom/RallyPointBtn" to="." method="_on_rally_point_btn_pressed"]
+[connection signal="pressed" from="BuildingProductionCard/Margin/VBox/HBoxBottom/DeselectBuildingBtn" to="." method="_on_close_building_card_pressed"]

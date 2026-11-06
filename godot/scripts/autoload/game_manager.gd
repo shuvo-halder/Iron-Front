@@ -14,15 +14,16 @@ enum GameState {
 	DEFEAT
 }
 
-var current_state: GameState = GameState.BOOT
+var current_state: GameState = GameState.IN_GAME
 var current_mission_id: String = "mission_01"
 
 # Economy State
-var current_supply: float = 250.0
-var base_income_rate: float = 6.0 # Supply per second
+var current_supply: float = 400.0 # Starting supply
+var base_income_rate: float = 6.0 # Base supply per second
+var building_income_rate: float = 10.0 # From HQ
 var captured_node_count: int = 0
 const NODE_INCOME_RATE: float = 4.0
-const MAX_SUPPLY_CAP: float = 1200.0
+const MAX_SUPPLY_CAP: float = 2000.0
 
 # Unit population
 const MAX_ACTIVE_UNITS: int = 100
@@ -37,7 +38,7 @@ func _process(delta: float) -> void:
 		_tick_economy(delta)
 
 func _tick_economy(delta: float) -> void:
-	var total_rate: float = base_income_rate + (captured_node_count * NODE_INCOME_RATE)
+	var total_rate := get_current_income_rate()
 	current_supply = minf(current_supply + (total_rate * delta), MAX_SUPPLY_CAP)
 	
 	var bus = get_node_or_null("/root/EventBus")
@@ -56,8 +57,20 @@ func spend_supply(cost: float) -> bool:
 		return true
 	return false
 
+func add_supply(amount: float) -> void:
+	current_supply = minf(current_supply + amount, MAX_SUPPLY_CAP)
+	var bus = get_node_or_null("/root/EventBus")
+	if bus:
+		bus.supply_changed.emit(current_supply, get_current_income_rate())
+
 func get_current_income_rate() -> float:
-	return base_income_rate + (captured_node_count * NODE_INCOME_RATE)
+	return base_income_rate + building_income_rate + (captured_node_count * NODE_INCOME_RATE)
+
+func register_building_income(rate: float) -> void:
+	building_income_rate += rate
+
+func unregister_building_income(rate: float) -> void:
+	building_income_rate = maxf(0.0, building_income_rate - rate)
 
 func register_node_capture(is_player: bool) -> void:
 	if is_player:
