@@ -8,6 +8,7 @@ const SAVE_PATH: String = "user://save.json"
 
 const DEFAULT_SAVE_DATA: Dictionary = {
 	"unlocked_missions": [1],
+	"mission_stars": {}, # { "1": 3, "2": 2 }
 	"money": 250, # War Bonds
 	"upgrades": [], # e.g. ["armor_sloped", "firepower_apcr"]
 	"settings": {
@@ -98,6 +99,18 @@ func unlock_mission(mission_idx: int) -> void:
 	if not list.has(mission_idx):
 		list.append(mission_idx)
 		data["unlocked_missions"] = list
+		save_game()
+
+func get_mission_stars(mission_idx: int) -> int:
+	var stars_map: Dictionary = data.get("mission_stars", {})
+	return int(stars_map.get(str(mission_idx), 0))
+
+func set_mission_stars(mission_idx: int, stars: int) -> void:
+	if not data.has("mission_stars"):
+		data["mission_stars"] = {}
+	var prev_stars: int = get_mission_stars(mission_idx)
+	if stars > prev_stars:
+		data["mission_stars"][str(mission_idx)] = stars
 		save_game()
 
 func get_money() -> int:

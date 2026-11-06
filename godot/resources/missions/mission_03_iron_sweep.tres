@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="MissionData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/mission_data.gd" id="1_mission_script"]
+[ext_resource type="Resource" path="res://resources/ai/hard_ai.tres" id="2_ai_config"]
+
+[resource]
+script = ExtResource("1_mission_script")
+mission_index = 3
+mission_id = "mission_03_iron_sweep"
+title = "Mission 3: Iron Sweep"
+briefing = "Axis Panzer Lehr division has dug into fortified bunkers across the eastern sector with Tiger heavy tanks and missile turrets. Execute a full combined-arms sweep. No enemy armor or installations must remain standing."
+objective_type = 3
+objective_description = "Eliminate all Axis combat units and military structures."
+survive_duration_seconds = 240.0
+par_time_seconds = 240.0
+starting_player_supply = 650.0
+starting_enemy_supply = 650.0
+enemy_ai_config = ExtResource("2_ai_config")
+reward_money = 400
+max_allowed_casualties_3_star = 4
+starting_player_units = []
+starting_player_buildings = []
+starting_enemy_units = []
+starting_enemy_buildings = []

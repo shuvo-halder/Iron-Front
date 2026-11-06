@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="EnemyAIData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_ai_data.gd" id="1_ai_script"]
+
+[resource]
+script = ExtResource("1_ai_script")
+difficulty = 1
+ai_name = "Axis Vanguard Commander (Medium)"
+base_position = Vector2(750, 0)
+staging_area = Vector2(450, 0)
+base_defense_radius = 420.0
+player_hq_position = Vector2(-750, 0)
+starting_supply = 450.0
+passive_supply_rate = 16.0
+supply_income_multiplier = 1.0
+build_order = [
+	"res://resources/units/rifle_squad.tres",
+	"res://resources/units/scout_car.tres",
+	"res://resources/units/anti_tank_team.tres",
+	"res://resources/units/medium_tank.tres",
+	"res://resources/units/rifle_squad.tres",
+	"res://resources/units/heavy_tank.tres",
+	"res://resources/units/attack_helicopter.tres"
+]
+wave_interval_seconds = 30.0
+min_wave_size = 5
+max_staging_time = 40.0
+retreat_health_threshold = 0.35
+outnumbered_ratio_threshold = 0.40
+aggressive_chase_range = 350.0
+prioritize_turrets = true

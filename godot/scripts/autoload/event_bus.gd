@@ -32,6 +32,12 @@ signal mission_completed(stars_earned: int, war_bonds_awarded: int)
 signal mission_failed(reason: String)
 signal upgrade_purchased(upgrade_id: String, branch: String)
 
+# Enemy AI & Wave Announcements
+signal building_damaged(building: Node2D, current_hp: float, max_hp: float)
+signal enemy_wave_announced(wave_number: int, unit_count: int, difficulty_name: String)
+signal enemy_ai_state_changed(state_name: String)
+signal enemy_base_alarm_triggered(invader_count: int)
+
 # System & Audio
 signal play_sfx_requested(sfx_id: String, world_position: Vector2)
 signal tactical_pause_toggled(is_paused: bool)

@@ -353,6 +353,62 @@ fun IronFrontGameScreen() {
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+
+                // AI Wave & State Indicator
+                Surface(
+                    color = when (engine.enemyAiState) {
+                        EnemyAiState.ATTACKING -> Color(0x66E53935)
+                        EnemyAiState.DEFENDING -> Color(0x66FFA000)
+                        EnemyAiState.RETREATING -> Color(0x669E9D24)
+                        EnemyAiState.GATHERING -> Color(0x66263238)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, when (engine.enemyAiState) {
+                        EnemyAiState.ATTACKING -> Color(0xFFEF5350)
+                        EnemyAiState.DEFENDING -> Color(0xFFFFB300)
+                        EnemyAiState.RETREATING -> Color(0xFFDCE775)
+                        EnemyAiState.GATHERING -> Color(0xFF455A64)
+                    }),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = when (engine.enemyAiState) {
+                                EnemyAiState.ATTACKING -> "WAVE ${engine.enemyWaveNumber} ATTACKING"
+                                EnemyAiState.DEFENDING -> "BASE DEFENSE ACTIVE"
+                                EnemyAiState.RETREATING -> "AXIS RETREATING..."
+                                EnemyAiState.GATHERING -> "Next Wave: ${kotlin.math.max(0, engine.enemyWaveTimer.toInt())}s"
+                            },
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                // AI Difficulty Selectors
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AiDifficulty.values().forEach { diff ->
+                        val isSelected = engine.aiDifficulty == diff
+                        FilledTonalButton(
+                            onClick = { engine.setDifficulty(diff) },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (isSelected) Color(0xFFFFB300) else Color(0xFF263238),
+                                contentColor = if (isSelected) Color.Black else Color.White
+                            ),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text(diff.displayName.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
 
             // Top action buttons: Pan Toggle, Scenario Select, Briefing, Restart
@@ -408,6 +464,39 @@ fun IronFrontGameScreen() {
                         .testTag("restart_mission_button")
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = "Restart", tint = Color.White, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+
+        // Live AI Alert Notification Banner (Pops up on waves, retreats, or base breach)
+        engine.aiNotificationText?.let { alertText ->
+            Surface(
+                color = Color(0xEE1E242B),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, Color(0xFFFF5252)),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 54.dp)
+                    .widthIn(max = 480.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Alert",
+                        tint = Color(0xFFFF5252),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = alertText,
+                        color = Color(0xFFFF5252),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }

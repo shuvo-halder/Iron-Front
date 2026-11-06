@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_game.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/systems/battle_tile_map.gd" id="2_tilemap"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/managers/input_manager.gd" id="5_input"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle_hud.tscn" id="6_hud"]
 [ext_resource type="Script" path="res://scripts/systems/build_manager.gd" id="7_build"]
+[ext_resource type="Script" path="res://scripts/managers/enemy_ai_manager.gd" id="8_ai"]
+[ext_resource type="PackedScene" path="res://scenes/ui/mission_complete_modal.tscn" id="9_modal"]
 
 [node name="MainGame" type="Node2D"]
 script = ExtResource("1_main")
@@ -36,4 +38,10 @@ camera = NodePath("../TacticalCamera")
 visible = false
 script = ExtResource("7_build")
 
+[node name="EnemyAIManager" type="Node" parent="."]
+script = ExtResource("8_ai")
+
 [node name="BattleHUD" parent="." instance=ExtResource("6_hud")]
+
+[node name="MissionCompleteModal" parent="." instance=ExtResource("9_modal")]
+visible = false

@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EnemyAIData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_ai_data.gd" id="1_ai_script"]
+
+[resource]
+script = ExtResource("1_ai_script")
+difficulty = 0
+ai_name = "Axis Scout Garrison (Easy)"
+base_position = Vector2(750, 0)
+staging_area = Vector2(450, 0)
+base_defense_radius = 380.0
+player_hq_position = Vector2(-750, 0)
+starting_supply = 300.0
+passive_supply_rate = 12.0
+supply_income_multiplier = 0.75
+build_order = [
+	"res://resources/units/rifle_squad.tres",
+	"res://resources/units/scout_car.tres",
+	"res://resources/units/rifle_squad.tres",
+	"res://resources/units/anti_tank_team.tres",
+	"res://resources/units/medium_tank.tres"
+]
+wave_interval_seconds = 45.0
+min_wave_size = 3
+max_staging_time = 50.0
+retreat_health_threshold = 0.20
+outnumbered_ratio_threshold = 0.25
+aggressive_chase_range = 300.0
+prioritize_turrets = false

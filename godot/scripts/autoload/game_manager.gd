@@ -16,6 +16,15 @@ enum GameState {
 
 var current_state: GameState = GameState.IN_GAME
 var current_mission_id: String = "mission_01"
+var active_mission_path: String = "res://resources/missions/mission_01_valley_vanguard.tres"
+
+func load_mission(res_path: String) -> void:
+	active_mission_path = res_path
+	var trans = get_node_or_null("/root/SceneTransition")
+	if trans:
+		trans.change_scene("res://scenes/main_game.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/main_game.tscn")
 
 # Economy State
 var current_supply: float = 400.0 # Starting supply

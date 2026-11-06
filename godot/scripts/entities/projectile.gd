@@ -84,6 +84,27 @@ func _on_body_entered(body: Node2D) -> void:
 		return
 	if body is Unit and body.faction != shooter_faction and body.current_state != Unit.State.DEAD:
 		_impact(global_position, body)
+	elif body is Building and body.data and body.data.faction != shooter_faction:
+		_impact_building(global_position, body)
+
+func _impact_building(pos: Vector2, b: Building) -> void:
+	var pool = get_node_or_null("/root/ObjectPool")
+	if is_instance_valid(b) and b.current_hp > 0.0:
+		b.take_damage(damage, armor_penetration, direction, shooter_node, damage_type)
+		if pool:
+			pool.spawn_hit_effect(pos, -direction, true)
+
+	if splash_radius > 0.0:
+		_apply_splash_damage(pos, null)
+
+	if pool:
+		if splash_radius > 30.0 or projectile_type == 1:
+			pool.spawn_explosion(pos, 0.9 if projectile_type == 1 else 0.7, projectile_type == 2)
+		else:
+			pool.spawn_explosion(pos, 0.4, false)
+		pool.recycle_projectile(self)
+	else:
+		queue_free()
 
 func _impact(pos: Vector2, direct_target: Unit) -> void:
 	var pool = get_node_or_null("/root/ObjectPool")

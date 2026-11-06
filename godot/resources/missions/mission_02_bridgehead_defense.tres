@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="MissionData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/mission_data.gd" id="1_mission_script"]
+[ext_resource type="Resource" path="res://resources/ai/medium_ai.tres" id="2_ai_config"]
+
+[resource]
+script = ExtResource("1_mission_script")
+mission_index = 2
+mission_id = "mission_02_bridgehead_defense"
+title = "Mission 2: Bridgehead Stand"
+briefing = "Axis motorized regiments have launched a massive counter-offensive to retake the river crossing. Fortify the bridge approach with defense turrets and defend our Headquarters for 2.5 minutes until air reinforcements arrive!"
+objective_type = 2
+objective_description = "Defend Allied Headquarters for 2.5 Minutes (150s)."
+survive_duration_seconds = 150.0
+par_time_seconds = 150.0
+starting_player_supply = 550.0
+starting_enemy_supply = 500.0
+enemy_ai_config = ExtResource("2_ai_config")
+reward_money = 250
+max_allowed_casualties_3_star = 6
+starting_player_units = []
+starting_player_buildings = []
+starting_enemy_units = []
+starting_enemy_buildings = []

@@ -1,0 +1,177 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/campaign_screen.gd" id="1_script"]
+
+[node name="CampaignScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.1, 0.12, 1)
+
+[node name="Header" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+
+[node name="Margin" type="MarginContainer" parent="Header"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+
+[node name="HBox" type="HBoxContainer" parent="Header/Margin"]
+layout_mode = 2
+alignment = 1
+
+[node name="BackBtn" type="Button" parent="Header/Margin/HBox"]
+custom_minimum_size = Vector2(100, 38)
+layout_mode = 2
+text = "← MENU"
+
+[node name="TitleLabel" type="Label" parent="Header/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "THEATER CAMPAIGN MAP"
+horizontal_alignment = 1
+
+[node name="WarBondsLabel" type="Label" parent="Header/Margin/HBox"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "WAR BONDS: 250 WB"
+horizontal_alignment = 2
+
+[node name="Body" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 56.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="HBox" type="HBoxContainer" parent="Body"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LeftColumn" type="VBoxContainer" parent="Body/HBox"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SectionTitle" type="Label" parent="Body/HBox/LeftColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "OPERATIONAL SECTORS"
+
+[node name="Scroll" type="ScrollContainer" parent="Body/HBox/LeftColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MissionList" type="VBoxContainer" parent="Body/HBox/LeftColumn/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="RightColumn" type="VBoxContainer" parent="Body/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DetailPanel" type="PanelContainer" parent="Body/HBox/RightColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Margin" type="MarginContainer" parent="Body/HBox/RightColumn/DetailPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Body/HBox/RightColumn/DetailPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 20
+text = "Mission 1: Valley Vanguard"
+
+[node name="TagLabel" type="Label" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "[MISSION TYPE: STRATEGIC ASSAULT]"
+
+[node name="HSeparator1" type="HSeparator" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+
+[node name="BriefingTitle" type="Label" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.7, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "STRATEGIC BRIEFING:"
+
+[node name="BriefingLabel" type="Label" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 13
+text = "Allied armored command has established a foothold. Breach the Axis valley outpost, cross the bridge, and destroy their forward Headquarters."
+autowrap_mode = 3
+
+[node name="ObjectiveLabel" type="Label" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.3, 1)
+theme_override_font_sizes/font_size = 13
+text = "OBJECTIVE: Destroy the Axis Forward Headquarters."
+
+[node name="HSeparator2" type="HSeparator" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+
+[node name="StarsCriteriaLabel" type="Label" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.7, 1)
+theme_override_font_sizes/font_size = 12
+text = "★ 1-Star: Complete Primary Objective\n★ 2-Star: Complete under 180s Par Time\n★ 3-Star: Suffer <= 5 Casualties"
+
+[node name="RewardLabel" type="Label" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "COMPLETION REWARD: +150 WAR BONDS"
+
+[node name="Spacer" type="Control" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DeployBtn" type="Button" parent="Body/HBox/RightColumn/DetailPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "DEPLOY TO BATTLEFIELD"
+
+[connection signal="pressed" from="Header/Margin/HBox/BackBtn" to="." method="_on_back_btn_pressed"]
+[connection signal="pressed" from="Body/HBox/RightColumn/DetailPanel/Margin/VBox/DeployBtn" to="." method="_on_deploy_btn_pressed"]

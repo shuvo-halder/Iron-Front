@@ -16,13 +16,21 @@ extends Node2D
 @onready var buildings_container: Node2D = $Buildings if has_node("Buildings") else null
 @onready var crates_container: Node2D = $SupplyCrates if has_node("SupplyCrates") else null
 @onready var build_manager: BuildManager = $BuildManager if has_node("BuildManager") else null
+@onready var enemy_ai_manager: EnemyAIManager = $EnemyAIManager if has_node("EnemyAIManager") else null
 @onready var battle_hud: BattleHUD = $BattleHUD
+@onready var mission_modal: MissionCompleteModal = $MissionCompleteModal if has_node("MissionCompleteModal") else null
 
 var spatial_grid: SpatialGrid
 var all_units: Array[Unit] = []
 var selected_units: Array[Unit] = []
 var spatial_grid_update_timer: float = 0.0
 const SPATIAL_GRID_INTERVAL: float = 0.05
+
+var mission_elapsed_time: float = 0.0
+var objective_check_timer: float = 0.0
+var player_casualties: int = 0
+var enemies_killed: int = 0
+var is_mission_ended: bool = false
 
 func _ready() -> void:
 	spatial_grid = SpatialGrid.new(128.0)
@@ -42,6 +50,11 @@ func _ready() -> void:
 		input_manager.long_press_detected.connect(_on_long_press_detected)
 		input_manager.drag_box_completed.connect(_on_drag_box_completed)
 
+	if mission_modal:
+		mission_modal.next_mission_requested.connect(_on_next_mission_requested)
+		mission_modal.replay_mission_requested.connect(_on_replay_mission_requested)
+		mission_modal.campaign_map_requested.connect(_on_campaign_map_requested)
+
 	var events = get_node_or_null("/root/EventBus")
 	if events:
 		events.unit_killed.connect(_on_unit_killed)
@@ -49,6 +62,19 @@ func _ready() -> void:
 	_setup_mission()
 
 func _setup_mission() -> void:
+	var gm = get_node_or_null("/root/GameManager")
+	if gm and not gm.active_mission_path.is_empty() and ResourceLoader.exists(gm.active_mission_path):
+		current_mission = load(gm.active_mission_path) as MissionData
+	elif current_mission == null:
+		current_mission = load("res://resources/missions/mission_01_valley_vanguard.tres") as MissionData
+
+	if current_mission:
+		if gm:
+			gm.current_supply = current_mission.starting_player_supply
+
+		if enemy_ai_manager and current_mission.enemy_ai_config:
+			enemy_ai_manager._apply_ai_data(current_mission.enemy_ai_config)
+
 	_spawn_base_infrastructure()
 	_spawn_collectible_supply_crates()
 	_spawn_skirmish_forces()
@@ -173,6 +199,14 @@ func _physics_process(delta: float) -> void:
 		for u in all_units:
 			if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
 				spatial_grid.insert(u)
+
+	# Objective & Win/Loss Evaluation
+	if not is_mission_ended and current_mission != null:
+		mission_elapsed_time += delta
+		objective_check_timer -= delta
+		if objective_check_timer <= 0.0:
+			objective_check_timer = 0.5
+			_evaluate_mission_status()
 
 # Gesture Callbacks from InputManager
 func _on_tap_detected(world_pos: Vector2, _screen_pos: Vector2) -> void:
@@ -324,20 +358,140 @@ func _find_building_at(world_pos: Vector2) -> Building:
 func _on_unit_killed(dead_unit: CharacterBody2D, _killer: CharacterBody2D) -> void:
 	all_units.erase(dead_unit)
 	selected_units.erase(dead_unit)
-	_check_victory_conditions()
 
-func _check_victory_conditions() -> void:
-	var allies = 0
-	var enemies = 0
+	if dead_unit is Unit and dead_unit.data:
+		if dead_unit.data.team == 0:
+			player_casualties += 1
+		else:
+			enemies_killed += 1
+
+	_evaluate_mission_status()
+
+func _evaluate_mission_status() -> void:
+	if is_mission_ended or current_mission == null:
+		return
+
+	var player_hq = _get_player_hq()
+	var axis_hq = _get_axis_hq()
+
+	var allies := 0
+	var enemies := 0
 	for u in all_units:
 		if is_instance_valid(u) and u.current_state != Unit.State.DEAD:
 			if u.data and u.data.team == 0: allies += 1
 			elif u.data and u.data.team == 1: enemies += 1
 
-	var bus = get_node_or_null("/root/EventBus")
-	if enemies == 0 and allies > 0:
+	var player_buildings_count := _count_active_buildings(0)
+	var enemy_buildings_count := _count_active_buildings(1)
+
+	# 1. Common Loss Conditions
+	if player_hq == null or player_hq.current_hp <= 0.0:
+		_trigger_mission_end(false, "Headquarters Destroyed")
+		return
+
+	if allies == 0 and player_buildings_count == 0:
+		_trigger_mission_end(false, "Allied Battlegroup Neutralized")
+		return
+
+	# 2. Objective-Specific Win Conditions
+	match current_mission.objective_type:
+		MissionData.ObjectiveType.DESTROY_HQ:
+			if axis_hq == null or axis_hq.current_hp <= 0.0:
+				_trigger_mission_end(true, "Axis Headquarters Destroyed")
+
+		MissionData.ObjectiveType.SURVIVE_TIME, MissionData.ObjectiveType.DEFEND_BUILDING:
+			if mission_elapsed_time >= current_mission.survive_duration_seconds:
+				_trigger_mission_end(true, "Defensive Perimeter Held Successfully")
+
+		MissionData.ObjectiveType.ELIMINATE_ALL:
+			if enemies == 0 and enemy_buildings_count == 0:
+				_trigger_mission_end(true, "All Hostile Elements Eliminated")
+
+func _trigger_mission_end(won: bool, reason: String) -> void:
+	if is_mission_ended:
+		return
+	is_mission_ended = true
+
+	var stars := 0
+	var reward := 0
+
+	if won and current_mission != null:
+		stars = 1 # 1 Star for primary victory
+		if mission_elapsed_time <= current_mission.par_time_seconds:
+			stars += 1 # 2 Stars for speed
+		if player_casualties <= current_mission.max_allowed_casualties_3_star:
+			stars += 1 # 3 Stars for low casualties
+
+		reward = current_mission.reward_money
+
+		var save_mgr = get_node_or_null("/root/SaveManager")
+		if save_mgr:
+			save_mgr.set_mission_stars(current_mission.mission_index, stars)
+			save_mgr.add_money(reward)
+			save_mgr.unlock_mission(current_mission.mission_index + 1)
+
+		var bus = get_node_or_null("/root/EventBus")
 		if bus:
-			bus.mission_completed.emit(3, 100)
-	elif allies == 0 and enemies > 0:
+			bus.mission_completed.emit(stars, reward)
+	else:
+		var bus = get_node_or_null("/root/EventBus")
 		if bus:
-			bus.mission_failed.emit("Allied forces neutralized.")
+			bus.mission_failed.emit(reason)
+
+	if mission_modal:
+		mission_modal.show_results(
+			won,
+			current_mission,
+			mission_elapsed_time,
+			player_casualties,
+			enemies_killed,
+			stars,
+			reward
+		)
+
+func _get_player_hq() -> Building:
+	if not buildings_container: return null
+	for child in buildings_container.get_children():
+		if child is Building and child.data and child.data.faction == 0 and child.data.building_type == BuildingData.BuildingType.HQ and child.current_hp > 0.0:
+			return child
+	return null
+
+func _get_axis_hq() -> Building:
+	if not buildings_container: return null
+	for child in buildings_container.get_children():
+		if child is Building and child.data and child.data.faction == 1 and child.data.building_type == BuildingData.BuildingType.HQ and child.current_hp > 0.0:
+			return child
+	return null
+
+func _count_active_buildings(faction: int) -> int:
+	if not buildings_container: return 0
+	var count := 0
+	for child in buildings_container.get_children():
+		if child is Building and child.data and child.data.faction == faction and child.current_hp > 0.0:
+			count += 1
+	return count
+
+# Modal Navigation Callbacks
+func _on_next_mission_requested() -> void:
+	var next_idx := (current_mission.mission_index + 1) if current_mission else 2
+	var next_path := "res://resources/missions/mission_01_valley_vanguard.tres"
+	match next_idx:
+		2: next_path = "res://resources/missions/mission_02_bridgehead_defense.tres"
+		3: next_path = "res://resources/missions/mission_03_iron_sweep.tres"
+		_: next_path = "res://resources/missions/mission_01_valley_vanguard.tres"
+
+	var gm = get_node_or_null("/root/GameManager")
+	if gm:
+		gm.load_mission(next_path)
+	else:
+		get_tree().reload_current_scene()
+
+func _on_replay_mission_requested() -> void:
+	get_tree().reload_current_scene()
+
+func _on_campaign_map_requested() -> void:
+	var trans = get_node_or_null("/root/SceneTransition")
+	if trans:
+		trans.change_scene("res://scenes/ui/campaign_screen.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/ui/campaign_screen.tscn")

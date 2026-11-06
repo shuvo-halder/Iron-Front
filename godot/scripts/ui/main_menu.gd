@@ -29,9 +29,9 @@ func _on_campaign_button_pressed() -> void:
 	_play_ui_click()
 	var trans = get_node_or_null("/root/SceneTransition")
 	if trans:
-		trans.change_scene("res://scenes/ui/mission_select.tscn")
+		trans.change_scene("res://scenes/ui/campaign_screen.tscn")
 	else:
-		get_tree().change_scene_to_file("res://scenes/ui/mission_select.tscn")
+		get_tree().change_scene_to_file("res://scenes/ui/campaign_screen.tscn")
 
 func _on_upgrades_button_pressed() -> void:
 	_play_ui_click()

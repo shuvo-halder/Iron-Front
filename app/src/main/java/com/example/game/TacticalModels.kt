@@ -40,7 +40,8 @@ enum class UnitClass(
     val armorType: ArmorType = ArmorType.INFANTRY,
     val damageType: DamageType = DamageType.KINETIC,
     val projectileType: ProjectileType = ProjectileType.BULLET,
-    val canTargetAir: Boolean = false
+    val canTargetAir: Boolean = false,
+    val cost: Int = 100
 ) {
     COMBAT_ENGINEER(
         displayName = "Combat Engineer",
@@ -363,12 +364,47 @@ data class TacticalSupplyCrate(
     var collected: Boolean = false
 )
 
+enum class ObjectiveType(val label: String) {
+    DESTROY_HQ("Destroy Axis HQ"),
+    SURVIVE_TIME("Survive Onslaught"),
+    DEFEND_BUILDING("Defend Allied HQ"),
+    ELIMINATE_ALL("Eliminate All Hostiles")
+}
+
 data class MissionScenario(
     val id: String,
+    val missionIndex: Int = 1,
     val title: String,
     val briefing: String,
+    val objectiveType: ObjectiveType = ObjectiveType.DESTROY_HQ,
+    val objectiveDescription: String,
+    val surviveDurationSec: Float = 150f,
+    val parTimeSec: Float = 180f,
+    val maxCasualties3Star: Int = 4,
+    val rewardMoney: Int = 150,
+    val startingSupply: Float = 450f,
+    val aiDifficulty: AiDifficulty = AiDifficulty.MEDIUM,
     val playerArmies: List<UnitClass>,
-    val enemyArmies: List<UnitClass>,
-    val objectiveDescription: String
+    val enemyArmies: List<UnitClass>
 )
+
+enum class AiDifficulty(
+    val displayName: String,
+    val incomeMult: Float,
+    val waveIntervalSec: Float,
+    val minWaveSize: Int,
+    val retreatThreshold: Float
+) {
+    EASY("Easy", 0.75f, 45f, 3, 0.20f),
+    MEDIUM("Medium", 1.0f, 30f, 5, 0.35f),
+    HARD("Hard", 1.35f, 20f, 7, 0.45f)
+}
+
+enum class EnemyAiState(val label: String) {
+    GATHERING("GATHERING"),
+    ATTACKING("ATTACKING"),
+    RETREATING("RETREATING"),
+    DEFENDING("DEFENDING")
+}
+
 

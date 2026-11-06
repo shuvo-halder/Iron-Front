@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="MissionData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/mission_data.gd" id="1_mission_script"]
+[ext_resource type="Resource" path="res://resources/ai/easy_ai.tres" id="2_ai_config"]
+
+[resource]
+script = ExtResource("1_mission_script")
+mission_index = 1
+mission_id = "mission_01_valley_vanguard"
+title = "Mission 1: Valley Vanguard"
+briefing = "Allied armored command has established a foothold. Breach the Axis valley outpost, cross the river bridge, and destroy their forward Headquarters."
+objective_type = 0
+objective_description = "Destroy the Axis Forward Headquarters."
+survive_duration_seconds = 180.0
+par_time_seconds = 180.0
+starting_player_supply = 450.0
+starting_enemy_supply = 350.0
+enemy_ai_config = ExtResource("2_ai_config")
+reward_money = 150
+max_allowed_casualties_3_star = 5
+starting_player_units = []
+starting_player_buildings = []
+starting_enemy_units = []
+starting_enemy_buildings = []

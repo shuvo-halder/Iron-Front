@@ -23,25 +23,47 @@ layout_mode = 2
 alignment = 1
 
 [node name="SupplyLabel" type="Label" parent="TopBar/Margin/HBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(210, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 text = "Supply: 400 S (+16/s)"
 
-[node name="UnitCountLabel" type="Label" parent="TopBar/Margin/HBox"]
+[node name="AIWaveLabel" type="Label" parent="TopBar/Margin/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.7, 0.85, 0.9, 1)
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
 theme_override_font_sizes/font_size = 14
-text = "Allied Forces: Active"
+text = "Wave 1: 30s [MED] | GATHERING"
 horizontal_alignment = 1
 
+[node name="DiffHBox" type="HBoxContainer" parent="TopBar/Margin/HBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EasyBtn" type="Button" parent="TopBar/Margin/HBox/DiffHBox"]
+custom_minimum_size = Vector2(48, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "EASY"
+
+[node name="MedBtn" type="Button" parent="TopBar/Margin/HBox/DiffHBox"]
+custom_minimum_size = Vector2(48, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "MED"
+
+[node name="HardBtn" type="Button" parent="TopBar/Margin/HBox/DiffHBox"]
+custom_minimum_size = Vector2(48, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "HARD"
+
 [node name="FPSLabel" type="Label" parent="TopBar/Margin/HBox"]
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(65, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.7, 0.6, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "60 FPS"
 horizontal_alignment = 2
 
@@ -239,11 +261,28 @@ custom_minimum_size = Vector2(130, 32)
 layout_mode = 2
 text = "RALLY POINT"
 
-[node name="DeselectBuildingBtn" type="Button" parent="BuildingProductionCard/Margin/VBox/HBoxBottom"]
-custom_minimum_size = Vector2(90, 32)
-layout_mode = 2
-text = "CLOSE"
+[node name="AlertBanner" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 62.0
+offset_right = 260.0
+offset_bottom = 104.0
+grow_horizontal = 2
 
+[node name="AlertLabel" type="Label" parent="AlertBanner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.3, 0.3, 1)
+theme_override_font_sizes/font_size = 15
+text = "ENEMY ATTACK WAVE 1 LAUNCHED!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[connection signal="pressed" from="TopBar/Margin/HBox/DiffHBox/EasyBtn" to="." method="_on_easy_btn_pressed"]
+[connection signal="pressed" from="TopBar/Margin/HBox/DiffHBox/MedBtn" to="." method="_on_med_btn_pressed"]
+[connection signal="pressed" from="TopBar/Margin/HBox/DiffHBox/HardBtn" to="." method="_on_hard_btn_pressed"]
 [connection signal="pressed" from="CommandDeck/MoveBtn" to="." method="_on_move_btn_pressed"]
 [connection signal="pressed" from="CommandDeck/AttackMoveBtn" to="." method="_on_attack_move_btn_pressed"]
 [connection signal="pressed" from="CommandDeck/StopBtn" to="." method="_on_stop_btn_pressed"]

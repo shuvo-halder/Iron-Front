@@ -28,6 +28,27 @@ class TacticalEngine {
     var passiveIncomeRate: Float = 16f
     val MAX_SUPPLY = 2000f
 
+    // Enemy AI Manager (3 Difficulty Levels, Wave Timers, Build Order, 0.5s ticks)
+    var aiDifficulty: AiDifficulty = AiDifficulty.MEDIUM
+    var enemyAiState: EnemyAiState = EnemyAiState.GATHERING
+    var enemySupply: Float = 450f
+    var enemyWaveTimer: Float = 30f
+    var enemyWaveNumber: Int = 0
+    var enemyAiTickTimer: Float = 0f
+    var aiNotificationText: String? = null
+    var aiNotificationTimer: Float = 0f
+
+    val enemyBuildOrder = listOf(
+        UnitClass.INFANTRY,
+        UnitClass.SCOUT_CAR,
+        UnitClass.ROCKET_SOLDIER,
+        UnitClass.MEDIUM_TANK,
+        UnitClass.INFANTRY,
+        UnitClass.HEAVY_TANK,
+        UnitClass.ATTACK_HELICOPTER
+    )
+    var enemyBuildOrderIndex = 0
+
     // Building Placement Mode
     var pendingBuildingToPlace: BuildingClass? = null
     var ghostX: Float = 0f
@@ -40,12 +61,20 @@ class TacticalEngine {
     var shotsDeflected = 0
     var battleWon: Boolean? = null
 
-    // Scenarios
+    // Scenarios (matching Godot Mission catalog)
     val scenarios = listOf(
         MissionScenario(
-            id = "iron_shield",
-            title = "Operation Iron Shield",
-            briefing = "An enemy armored division with air support is advancing. Build defense turrets, recruit reinforcements from Barracks, and hold the line.",
+            id = "mission_01_valley_vanguard",
+            missionIndex = 1,
+            title = "Mission 1: Valley Vanguard",
+            briefing = "Axis recon forces have established a forward command base in the valley. Deploy your armor, secure supply crates, and obliterate the enemy HQ to open the frontline.",
+            objectiveType = ObjectiveType.DESTROY_HQ,
+            objectiveDescription = "Destroy enemy HQ in under 180 seconds",
+            parTimeSec = 180f,
+            maxCasualties3Star = 4,
+            rewardMoney = 150,
+            startingSupply = 450f,
+            aiDifficulty = AiDifficulty.EASY,
             playerArmies = listOf(
                 UnitClass.MEDIUM_TANK,
                 UnitClass.ROCKET_SOLDIER, UnitClass.ROCKET_SOLDIER,
@@ -54,43 +83,57 @@ class TacticalEngine {
             enemyArmies = listOf(
                 UnitClass.MEDIUM_TANK,
                 UnitClass.SCOUT_CAR,
-                UnitClass.ATTACK_HELICOPTER,
                 UnitClass.INFANTRY, UnitClass.ROCKET_SOLDIER
-            ),
-            objectiveDescription = "Build base structures, harvest supply crates, and neutralize Axis assault"
+            )
         ),
         MissionScenario(
-            id = "desert_hammer",
-            title = "Operation Desert Hammer",
-            briefing = "Axis motorized spearhead is refueling. Rapidly construct an Armor Factory to produce heavy tanks.",
+            id = "mission_02_bridgehead_defense",
+            missionIndex = 2,
+            title = "Mission 2: Bridgehead Defense",
+            briefing = "Axis motorized spearhead is launching a counter-offensive across the river. Hold the bridgehead and protect Allied HQ for 150 seconds until reinforcements arrive.",
+            objectiveType = ObjectiveType.SURVIVE_TIME,
+            objectiveDescription = "Hold bridgehead & protect Allied HQ for 150 seconds",
+            surviveDurationSec = 150f,
+            parTimeSec = 180f,
+            maxCasualties3Star = 6,
+            rewardMoney = 250,
+            startingSupply = 600f,
+            aiDifficulty = AiDifficulty.MEDIUM,
             playerArmies = listOf(
                 UnitClass.SCOUT_CAR,
                 UnitClass.MEDIUM_TANK,
-                UnitClass.ROCKET_SOLDIER
+                UnitClass.ROCKET_SOLDIER,
+                UnitClass.INFANTRY, UnitClass.INFANTRY
             ),
             enemyArmies = listOf(
                 UnitClass.HEAVY_TANK,
                 UnitClass.MEDIUM_TANK,
-                UnitClass.DEFENSE_TURRET,
+                UnitClass.ATTACK_HELICOPTER,
                 UnitClass.INFANTRY, UnitClass.ROCKET_SOLDIER
-            ),
-            objectiveDescription = "Establish armored production and eliminate Axis stronghold"
+            )
         ),
         MissionScenario(
-            id = "skirmish_100",
-            title = "Full Front Combined Arms (60-100 Units)",
-            briefing = "Massive combined arms battle testing infantry, armor, rockets, buildings, and air support at 60 FPS on Android hardware.",
-            playerArmies = List(6) { UnitClass.INFANTRY } +
+            id = "mission_03_iron_sweep",
+            missionIndex = 3,
+            title = "Mission 3: Iron Sweep",
+            briefing = "The enemy is entrenched in full combined-arms strength. Eliminate every single hostile unit and defense building to secure the sector.",
+            objectiveType = ObjectiveType.ELIMINATE_ALL,
+            objectiveDescription = "Eliminate all Axis units and structures",
+            parTimeSec = 240f,
+            maxCasualties3Star = 5,
+            rewardMoney = 400,
+            startingSupply = 800f,
+            aiDifficulty = AiDifficulty.HARD,
+            playerArmies = List(4) { UnitClass.INFANTRY } +
+                    List(3) { UnitClass.ROCKET_SOLDIER } +
+                    List(3) { UnitClass.MEDIUM_TANK } +
+                    List(1) { UnitClass.HEAVY_TANK } +
+                    List(1) { UnitClass.ATTACK_HELICOPTER },
+            enemyArmies = List(5) { UnitClass.INFANTRY } +
                     List(4) { UnitClass.ROCKET_SOLDIER } +
                     List(4) { UnitClass.MEDIUM_TANK } +
                     List(2) { UnitClass.HEAVY_TANK } +
-                    List(2) { UnitClass.ATTACK_HELICOPTER },
-            enemyArmies = List(6) { UnitClass.INFANTRY } +
-                    List(4) { UnitClass.ROCKET_SOLDIER } +
-                    List(4) { UnitClass.MEDIUM_TANK } +
-                    List(2) { UnitClass.HEAVY_TANK } +
-                    List(2) { UnitClass.ATTACK_HELICOPTER },
-            objectiveDescription = "Engage in full-scale combined arms tactical warfare"
+                    List(2) { UnitClass.ATTACK_HELICOPTER }
         )
     )
 
@@ -218,6 +261,23 @@ class TacticalEngine {
         }
         passiveIncomeRate = currentRate
         currentSupply = min(currentSupply + passiveIncomeRate * dt, MAX_SUPPLY)
+
+        // Enemy AI Economy accumulation & Timers
+        enemySupply = min(enemySupply + (16f * aiDifficulty.incomeMult) * dt, MAX_SUPPLY)
+        if (aiNotificationTimer > 0f) {
+            aiNotificationTimer -= dt
+            if (aiNotificationTimer <= 0f) aiNotificationText = null
+        }
+        if (enemyAiState == EnemyAiState.GATHERING) {
+            enemyWaveTimer -= dt
+        }
+
+        // 0.5s Enemy AI Decision Loop (2 Hz)
+        enemyAiTickTimer += dt
+        if (enemyAiTickTimer >= 0.5f) {
+            enemyAiTickTimer -= 0.5f
+            tickEnemyAi()
+        }
 
         // 2. Supply Crate Collection
         for (crate in supplyCrates) {
@@ -449,6 +509,149 @@ class TacticalEngine {
                 battleWon = true
             } else if (alliedCount == 0 && (alliedHq == null || alliedHq.isDestroyed)) {
                 battleWon = false
+            }
+        }
+    }
+
+    fun setDifficulty(diff: AiDifficulty) {
+        aiDifficulty = diff
+        enemyWaveTimer = diff.waveIntervalSec
+        aiNotificationText = "AI DIFFICULTY: ${diff.displayName.uppercase()}"
+        aiNotificationTimer = 3.0f
+    }
+
+    private fun tickEnemyAi() {
+        val axisHq = buildings.firstOrNull { it.buildingClass == BuildingClass.HQ && it.faction == Faction.AXIS && !it.isDestroyed }
+        val basePos = if (axisHq != null) Pair(axisHq.x, axisHq.y) else Pair(mapWidth * 0.75f, mapHeight * 0.5f)
+        val stagingPos = Pair(mapWidth * 0.62f, mapHeight * 0.5f)
+
+        // 1. Base Defense Check (Highest Priority)
+        val invaders = units.filter { it.faction == Faction.ALLIED && !it.isDestroyed && hypot(it.x - basePos.first, it.y - basePos.second) <= 450f }
+        if (invaders.isNotEmpty()) {
+            if (enemyAiState != EnemyAiState.DEFENDING) {
+                enemyAiState = EnemyAiState.DEFENDING
+                aiNotificationText = "AXIS BASE PERIMETER BREACHED! (${invaders.size} Invaders)"
+                aiNotificationTimer = 3.0f
+            }
+            val primaryTarget = invaders.minByOrNull { hypot(it.x - basePos.first, it.y - basePos.second) }
+            if (primaryTarget != null) {
+                for (u in units) {
+                    if (u.faction == Faction.AXIS && !u.isDestroyed) {
+                        u.targetUnitId = primaryTarget.id
+                        u.state = UnitState.ATTACK_MOVE
+                    }
+                }
+            }
+            return
+        } else if (enemyAiState == EnemyAiState.DEFENDING) {
+            enemyAiState = EnemyAiState.GATHERING
+        }
+
+        // 2. Economy Management & Build Order Queue
+        val nextUnitClass = enemyBuildOrder[enemyBuildOrderIndex]
+        if (enemySupply >= nextUnitClass.cost) {
+            val facility = buildings.firstOrNull {
+                it.faction == Faction.AXIS && !it.isDestroyed && !it.isUnderConstruction &&
+                it.buildingClass.producibleUnits.contains(nextUnitClass) && it.queue.size < 5
+            }
+            if (facility != null) {
+                enemySupply -= nextUnitClass.cost
+                facility.queue.add(nextUnitClass)
+                facility.rallyX = stagingPos.first + Random.nextFloat() * 60f - 30f
+                facility.rallyY = stagingPos.second + Random.nextFloat() * 60f - 30f
+                enemyBuildOrderIndex = (enemyBuildOrderIndex + 1) % enemyBuildOrder.size
+            }
+        }
+
+        // 3. Outnumbered & Damage Tactical Retreat
+        for (u in units) {
+            if (u.faction == Faction.AXIS && !u.isDestroyed) {
+                // Health threshold retreat
+                val hpRatio = u.hp / u.unitClass.maxHp
+                if (hpRatio <= aiDifficulty.retreatThreshold) {
+                    u.targetX = basePos.first + Random.nextFloat() * 80f - 40f
+                    u.targetY = basePos.second + Random.nextFloat() * 80f - 40f
+                    u.state = UnitState.MOVE
+                    continue
+                }
+
+                // Local outnumbered check (300f radius)
+                var localAllied = 0
+                var localAxis = 0
+                for (other in units) {
+                    if (!other.isDestroyed && hypot(other.x - u.x, other.y - u.y) <= 300f) {
+                        if (other.faction == Faction.ALLIED) localAllied++ else localAxis++
+                    }
+                }
+                if (localAllied >= 2 && (localAxis.toFloat() / localAllied.toFloat()) < aiDifficulty.retreatThreshold) {
+                    u.targetX = stagingPos.first + Random.nextFloat() * 80f - 40f
+                    u.targetY = stagingPos.second + Random.nextFloat() * 80f - 40f
+                    u.state = UnitState.MOVE
+                }
+            }
+        }
+
+        // 4. Wave Formation & Launch
+        if (enemyAiState == EnemyAiState.GATHERING) {
+            val idleAxis = units.filter { it.faction == Faction.AXIS && !it.isDestroyed }
+            if (enemyWaveTimer <= 0f && idleAxis.size >= aiDifficulty.minWaveSize) {
+                enemyWaveNumber++
+                enemyWaveTimer = aiDifficulty.waveIntervalSec
+                enemyAiState = EnemyAiState.ATTACKING
+                aiNotificationText = "AXIS WAVE $enemyWaveNumber LAUNCHED! (${aiDifficulty.displayName})"
+                aiNotificationTimer = 3.5f
+            }
+        }
+
+        // 5. 4-Tier Target Priority when Attacking
+        if (enemyAiState == EnemyAiState.ATTACKING) {
+            val alliedTurret = buildings.firstOrNull { it.buildingClass == BuildingClass.TURRET && it.faction == Faction.ALLIED && !it.isDestroyed }
+            val alliedProd = buildings.firstOrNull { (it.buildingClass == BuildingClass.BARRACKS || it.buildingClass == BuildingClass.FACTORY) && it.faction == Faction.ALLIED && !it.isDestroyed }
+            val alliedHq = buildings.firstOrNull { it.buildingClass == BuildingClass.HQ && it.faction == Faction.ALLIED && !it.isDestroyed }
+
+            val activeAxisAttackers = units.filter { it.faction == Faction.AXIS && !it.isDestroyed }
+            if (activeAxisAttackers.isEmpty()) {
+                enemyAiState = EnemyAiState.GATHERING
+                enemyWaveTimer = aiDifficulty.waveIntervalSec
+                return
+            }
+
+            for (u in activeAxisAttackers) {
+                // Tier 1: Nearest Threat within 350f
+                val nearestThreat = units.filter { it.faction == Faction.ALLIED && !it.isDestroyed && hypot(it.x - u.x, it.y - u.y) <= 350f }
+                    .minByOrNull { hypot(it.x - u.x, it.y - u.y) }
+                if (nearestThreat != null) {
+                    u.targetUnitId = nearestThreat.id
+                    u.state = UnitState.ATTACK_TARGET
+                    continue
+                }
+
+                // Tier 2: Defensive Structures (Player Defense Turret)
+                if (alliedTurret != null) {
+                    u.targetX = alliedTurret.x
+                    u.targetY = alliedTurret.y
+                    u.state = UnitState.ATTACK_MOVE
+                    continue
+                }
+
+                // Tier 3: Production Structures (Player Barracks / Factory)
+                if (alliedProd != null) {
+                    u.targetX = alliedProd.x
+                    u.targetY = alliedProd.y
+                    u.state = UnitState.ATTACK_MOVE
+                    continue
+                }
+
+                // Tier 4: Player Headquarters (Allied HQ)
+                if (alliedHq != null) {
+                    u.targetX = alliedHq.x
+                    u.targetY = alliedHq.y
+                    u.state = UnitState.ATTACK_MOVE
+                } else {
+                    u.targetX = 250f
+                    u.targetY = mapHeight * 0.5f
+                    u.state = UnitState.ATTACK_MOVE
+                }
             }
         }
     }

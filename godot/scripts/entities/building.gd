@@ -118,6 +118,24 @@ func enqueue_unit(unit_res_path: String) -> bool:
 	queue_redraw()
 	return true
 
+func enqueue_unit_ai(unit_res_path: String) -> bool:
+	if is_under_construction or production_queue.size() >= 5:
+		return false
+
+	var u_data = load(unit_res_path) as UnitData
+	if not u_data:
+		return false
+
+	var build_sec := clampf(u_data.cost * 0.025, 2.5, 7.5)
+	production_queue.append({
+		"res_path": unit_res_path,
+		"time_left": build_sec,
+		"total_time": build_sec,
+		"display_name": u_data.display_name
+	})
+	queue_redraw()
+	return true
+
 func _spawn_completed_unit(res_path: String) -> void:
 	var exit_pos := global_position + Vector2(0, data.footprint_radius + 15.0)
 	var main_game = get_tree().root.find_child("MainGame", true, false)
@@ -200,6 +218,10 @@ func take_damage(amount: float, armor_pen: float, hit_dir: Vector2, _attacker: N
 	var diff := effective_armor - armor_pen
 	var mult := clampf(1.0 - (diff / 50.0), 0.2, 1.5)
 	current_hp -= maxf(amount * mult, 1.0)
+
+	var bus = get_node_or_null("/root/EventBus")
+	if bus:
+		bus.building_damaged.emit(self, current_hp, data.max_health if data else 1000.0)
 
 	if current_hp <= 0.0:
 		die()

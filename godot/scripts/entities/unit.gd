@@ -19,6 +19,7 @@ var current_hp: float = 100.0
 var is_selected: bool = false
 var is_attack_moving: bool = false
 var target_unit: Unit = null
+var target_building: Building = null
 var attack_timer: float = 0.0
 var scan_timer: float = 0.0
 var faction: int:
@@ -157,28 +158,69 @@ func _on_velocity_computed(safe_velocity: Vector2) -> void:
 	move_and_slide()
 
 func _process_attack(delta: float) -> void:
-	if not is_instance_valid(target_unit) or target_unit.current_state == State.DEAD or not can_target(target_unit):
-		target_unit = null
-		current_state = State.IDLE
+	if is_instance_valid(target_unit) and target_unit.current_state != State.DEAD and can_target(target_unit):
+		var dist := global_position.distance_to(target_unit.global_position)
+		var max_range := data.range if data else 200.0
+
+		if dist > max_range * 1.15:
+			# Reposition within firing range
+			set_move_target(target_unit.global_position)
+			current_state = State.MOVE
+			return
+
+		# Face target
+		var dir := (target_unit.global_position - global_position).normalized()
+		rotation = rotate_toward(rotation, dir.angle(), (data.turret_rotation_speed if data else 4.5) * delta)
+
+		# Fire weapon when reload cooldown expires
+		if attack_timer <= 0.0:
+			attack_timer = data.attack_cooldown if data else 1.0
+			_execute_attack(target_unit)
 		return
 
-	var dist := global_position.distance_to(target_unit.global_position)
-	var max_range := data.range if data else 200.0
+	# Handle building attack target
+	if is_instance_valid(target_building) and target_building.current_hp > 0.0:
+		var dist := global_position.distance_to(target_building.global_position)
+		var max_range := data.range if data else 200.0
 
-	if dist > max_range * 1.15:
-		# Reposition within firing range
-		set_move_target(target_unit.global_position)
-		current_state = State.MOVE
+		if dist > max_range * 1.15:
+			set_move_target(target_building.global_position)
+			current_state = State.MOVE
+			return
+
+		var dir := (target_building.global_position - global_position).normalized()
+		rotation = rotate_toward(rotation, dir.angle(), (data.turret_rotation_speed if data else 4.5) * delta)
+
+		if attack_timer <= 0.0:
+			attack_timer = data.attack_cooldown if data else 1.0
+			_execute_attack_building(target_building)
 		return
 
-	# Face target
-	var dir := (target_unit.global_position - global_position).normalized()
-	rotation = rotate_toward(rotation, dir.angle(), (data.turret_rotation_speed if data else 4.5) * delta)
+	target_unit = null
+	target_building = null
+	current_state = State.IDLE
 
-	# Fire weapon when reload cooldown expires
-	if attack_timer <= 0.0:
-		attack_timer = data.attack_cooldown if data else 1.0
-		_execute_attack(target_unit)
+func _execute_attack_building(b: Building) -> void:
+	var pool = get_node_or_null("/root/ObjectPool")
+	var rad := data.unit_radius if data else 18.0
+	var barrel_tip := global_position + Vector2.RIGHT.rotated(rotation) * (rad + 6.0)
+	var dir := (b.global_position - barrel_tip).normalized()
+
+	if pool:
+		var flash_scale := 1.2 if (data and data.projectile_type == UnitData.ProjectileType.TANK_SHELL) else 0.8
+		pool.spawn_muzzle_flash(barrel_tip, dir, flash_scale)
+
+	var p_type := data.projectile_type if data else 0
+	var d_type := data.damage_type if data else 0
+	var spd := data.projectile_speed if data else 550.0
+	var dmg := data.damage if data else 20.0
+	var pen := data.armor_penetration if data else 15.0
+	var splash := data.splash_radius if data else 0.0
+
+	if pool:
+		pool.spawn_projectile(barrel_tip, b.global_position, spd, dmg, pen, faction, p_type, d_type, splash, self)
+	else:
+		b.take_damage(dmg, pen, dir, self, d_type)
 
 func _execute_attack(target: Unit) -> void:
 	var pool = get_node_or_null("/root/ObjectPool")
@@ -273,12 +315,19 @@ func die(killer: Node2D = null) -> void:
 
 func set_move_target(dest: Vector2) -> void:
 	target_unit = null
+	target_building = null
 	current_state = State.MOVE
 	if nav_agent:
 		nav_agent.target_position = dest
 
 func set_attack_target(enemy: Unit) -> void:
 	target_unit = enemy
+	target_building = null
+	current_state = State.ATTACK
+
+func set_attack_building(b: Building) -> void:
+	target_building = b
+	target_unit = null
 	current_state = State.ATTACK
 
 func order_move(dest: Vector2) -> void:
@@ -292,6 +341,10 @@ func order_attack_move(dest: Vector2) -> void:
 func order_attack_target(enemy: Unit) -> void:
 	if can_target(enemy):
 		set_attack_target(enemy)
+
+func order_attack_building(b: Building) -> void:
+	if is_instance_valid(b) and b.current_hp > 0.0:
+		set_attack_building(b)
 
 func set_selected(selected: bool) -> void:
 	is_selected = selected
